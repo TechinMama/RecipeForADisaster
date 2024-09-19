@@ -1,5 +1,5 @@
 # Recipe For A Disaster
-Recipe for a Disaster is a small recipe manager application, fundamentally built with C++ language and object-oriented programming. The goal is to build a functionable application that reads and stores recipes from a file passed. Currently attempting to implement JSON logic. Ideally there should exist functionality to enter a recipe via a website. This should help to improve concepts such as data management, file handling, and user interaction.
+Recipe for a Disaster is a small recipe manager application, fundamentally built with C++ language and object-oriented programming. The goal is to build a functionable application that reads and stores recipes from a file passed. Currently attempting to implement JSON logic. Ideally, there should exist functionality to enter a recipe via a website. This should help to improve concepts such as data management, file handling, and user interaction.
 
 ## Learning Outcomes
 -	Develop knowledge of object-oriented programming through class design.
@@ -19,9 +19,9 @@ Recipe for a Disaster is a small recipe manager application, fundamentally built
 	    - Include validation for user inputs (e.g., ensuring ingredient lists are not empty).
 
 ## Next Steps
-- File I/O Implementation: Implement the loadRecipes and saveRecipes methods in RecipeManager to read from and write to files.
-- User Input Validation: Add error checking and validation for user inputs.
-- Additional Features: Consider implementing search and filtering functionality, favorites, or a graphical user interface as you progress.
-- Data Storage: JSON to start and need to look at a backend DB. 
-•	Consider using nlohmann/json for easy JSON manipulation if you choose that format for data storage.
+- *File I/O Implementation:* Implement the loadRecipes and saveRecipes methods in RecipeManager to read from and write to files.
+- *User Input Validation:* Add error checking and validation for user inputs.
+- *Additional Features:* Consider implementing search and filtering functionality, favorites, or a graphical user interface as you progress.
+- *Data Storage:* JSON to start and need to look at a backend DB. 
+•	~Consider using nlohmann/json for easy JSON manipulation if you choose that format for data storage.~
 •	Changed this since writing to MongoDB.

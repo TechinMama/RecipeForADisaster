@@ -2,10 +2,10 @@
 Recipe for a Disaster is a small recipe manager application, fundamentally built with C++ language and object-oriented programming. The goal is to build a functionable application that reads and stores recipes from a file passed. Currently attempting to implement JSON logic. Ideally there should exist functionality to enter a recipe via a website. This should help to improve concepts such as data management, file handling, and user interaction.
 
 ## Learning Outcomes
-•	Develop knowledge of object-oriented programming through class design.
-•	Improve your understanding of file handling and data persistence.
-•	Learn to work with collections (like vectors) and algorithms for searching and sorting.
-•	Enhance your skills in console application development, including user input validation and error handling.
+-	Develop knowledge of object-oriented programming through class design.
+-	Improve your understanding of file handling and data persistence.
+-	Learn to work with collections (like vectors) and algorithms for searching and sorting.
+-	Enhance your skills in console application development, including user input validation and error handling.
 
 ## Design Considerations
 1.	Classes and Data Structures:

@@ -22,6 +22,7 @@ Recipe for a Disaster is a small recipe manager application, fundamentally built
 - *File I/O Implementation:* Implement the loadRecipes and saveRecipes methods in RecipeManager to read from and write to files.
 - *User Input Validation:* Add error checking and validation for user inputs.
 - *Additional Features:* Consider implementing search and filtering functionality, favorites, or a graphical user interface as you progress.
-- *Data Storage:* JSON to start and need to look at a backend DB. 
+- *Data Storage:* JSON to start and need to look at a backend DB.
+
 •	~Consider using nlohmann/json for easy JSON manipulation if you choose that format for data storage.~
 •	Changed this since writing to MongoDB.

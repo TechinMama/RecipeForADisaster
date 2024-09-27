@@ -4,9 +4,9 @@
 #include <string>
 #include <vector>
 
-class Recipe {
+class recipe {
 public:
-    Recipe(const std::string& name, const std::vector<std::string>& ingredients, 
+    recipe(const std::string& name, const std::vector<std::string>& ingredients, 
            const std::string& instructions, int cooktime, const std::string& category);
 
     std::string getName() const;

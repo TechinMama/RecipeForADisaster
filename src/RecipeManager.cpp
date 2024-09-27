@@ -1,17 +1,18 @@
-#include "RecipeManager.h"
+#include "recipeManager.h"
 #include <fstream>
 #include <iostream>
+#include "recipe.h"
 
-void RecipeManager::addRecipe(const Recipe& recipe) {
+void recipeManager::addRecipe(const recipe& recipe) {
     recipes.push_back(recipe);
 }
 
-void RecipeManager::deleteRecipe(const std::string& name) {
+void recipeManager::deleteRecipe(const std::string& name) {
     recipes.erase(std::remove_if(recipes.begin(), recipes.end(),
-                                  [&name](const Recipe& r) { return r.getName() == name; }), recipes.end());
+                                  [&name](const recipe& r) { return r.getName() == name; }), recipes.end());
 }
 
-Recipe* RecipeManager::findRecipe(const std::string& name) {
+recipe* recipeManager::findRecipe(const std::string& name) {
     for (auto& recipe : recipes) {
         if (recipe.getName() == name) {
             return &recipe;
@@ -20,14 +21,14 @@ Recipe* RecipeManager::findRecipe(const std::string& name) {
     return nullptr;
 }
 
-void RecipeManager::loadRecipes(const std::string& filename) {
+void recipeManager::loadRecipes(const std::string& filename) {
     // Implementation for loading from a file (CSV or JSON)
 }
 
-void RecipeManager::saveRecipes(const std::string& filename) const {
+void recipeManager::saveRecipes(const std::string& filename) const {
     // Implementation for saving to a file (CSV or JSON)
 }
 
-const std::vector<Recipe>& RecipeManager::getAllRecipes() const {
+const std::vector<recipe>& recipeManager::getAllRecipes() const {
     return recipes;
 }

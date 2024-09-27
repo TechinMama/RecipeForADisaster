@@ -32,5 +32,5 @@ Changed this since writing to MongoDB.
 ## Running the Code Locally
 These steps are under the assumption that `xcode tools` and `gcc` has been installed and is running on the latest version.
 1. Switch to the directory on local workstation `</$HOME/app-directory>`
-2. Execute `g++ -std=c++11 File_Name.cpp -o FileName` to combile and build the applications executable file.
-3. Use `./` and the name of the file without the `.cpp` extension.
+2. Execute `clang++ -std=c++14 main.cpp Recipe.cpp RecipeManager.cpp -o RecipeManager` to compile and build the application executable file.
+3. Use `./RecipeManager` and the name of the file without the `.cpp` extension.

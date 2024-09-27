@@ -1,21 +1,21 @@
 #ifndef RECIPE_MANAGER_H
 #define RECIPE_MANAGER_H
 
-#include "Recipe.h"
+#include "recipe.h"
 #include <vector>
 #include <string>
 
-class RecipeManager {
+class recipeManager {
 public:
-    void addRecipe(const Recipe& recipe);
+    void addRecipe(const recipe& recipe);
     void deleteRecipe(const std::string& name);
-    Recipe* findRecipe(const std::string& name);
+    recipe* findRecipe(const std::string& name);
     void loadRecipes(const std::string& filename);
     void saveRecipes(const std::string& filename) const;
-    const std::vector<Recipe>& getAllRecipes() const;
+    const std::vector<recipe>& getAllRecipes() const;
 
 private:
-    std::vector<Recipe> recipes;
+    std::vector<recipe> recipes;
 };
 
 #endif

@@ -1,21 +1,26 @@
 #ifndef RECIPE_MANAGER_H
 #define RECIPE_MANAGER_H
 
+#include <mongocxx/v_noabi/mongocxx/client.hpp>
+#include <mongocxx/v_noabi/mongocxx/client-fwd.hpp>
+#include <mongocxx/instance.hpp>
+#include <mongocxx/uri.hpp>
+
 #include "recipe.h"
 #include <vector>
-#include <string>
 
 class recipeManager {
 public:
+    recipeManager(const std::string& uri);
     void addRecipe(const recipe& recipe);
-    void deleteRecipe(const std::string& name);
-    recipe* findRecipe(const std::string& name);
-    void loadRecipes(const std::string& filename);
-    void saveRecipes(const std::string& filename) const;
-    const std::vector<recipe>& getAllRecipes() const;
+    std::vector<recipe> viewRecipes();
+    void updateRecipe(const recipe& recipe);
+    void deleteRecipe(const std::string& id);
+    std::vector<recipe> searchRecipes(const std::string& query);
 
 private:
-    std::vector<recipe> recipes;
+    mongocxx::client client;
+    mongocxx::database db;
 };
 
-#endif
+#endif // RECIPE_MANAGER_H

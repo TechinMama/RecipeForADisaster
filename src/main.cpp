@@ -3,7 +3,7 @@
 
 int main() {
     mongocxx::instance instance{};
-    recipeManager manager("your_mongodb_uri"); // Replace with your hosted MongoDB URI
+    recipeManager manager("MONGODB_URI"); // Replace with your hosted MongoDB URI
 
     // Example recipe usage:
     recipe newRecipe("Pasta", "Pasta, Tomato Sauce", "Boil pasta, add sauce", 

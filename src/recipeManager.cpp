@@ -3,95 +3,101 @@
 #include <bsoncxx/builder/stream/document.hpp>
 #include <bsoncxx/json.hpp>
 
-recipeManager::recipeManager(const std::string& uri) : client(mongocxx::uri{uri}), db(client["recipe_db"]) {}
+recipeManager::recipeManager(const std::string& uri) 
+    : client(mongocxx::uri{uri}), db(client["RecipeManagerDB"]) {}  
+
+Specify your database name
 
 void recipeManager::addRecipe(const Recipe& recipe) {
     auto collection = db["recipes"];
     bsoncxx::builder::stream::document document{};
     document << "title" << recipe.getTitle()
              << "ingredients" << recipe.getIngredients()
-             << "instructions" << 
-
-recipe.getInstructions()
+             << "instructions" << recipe.getInstructions()
              << "servingSize" << recipe.getServingSize()
              << "cookTime" << recipe.getCookTime()
-             << "category" << recipe.getCategory()
-             << "type" << recipe.getType();
+             << "cuisine" << recipe.getCuisine()
+             << "category" << recipe.getCategory();
     collection.insert_one(document.view());
 }
 
+
 std::vector<recipe> recipeManager::viewRecipes() {
-    std::vector<recipe> recipes;
     auto collection = db["recipes"];
+    std::vector<recipe> recipes;
     auto cursor = collection.find({});
     
-    for (const auto& doc : cursor) {
-        recipes.emplace_back(
-            bsoncxx::to_json(doc["_id"].get_oid().value).
-
-to_string(),
+    for (auto&& doc : cursor) {
+        Recipe recipe(
             doc["title"].get_utf8().value.to_string(),
             doc["ingredients"].get_utf8().value.to_string(),
             doc["instructions"].get_utf8().value.to_string(),
             doc["servingSize"].get_utf8().value.to_string(),
-            doc["cookTime"].get_utf8().value.to_string(),
-            doc["category"].get_utf8().value.to_string(),
-            doc["type"].get_utf8().value.to_string()
-        );
-    }
+            
 
+doc["cookTime"].get_utf8().value.to_string(),
+            doc["cuisine"].get_utf8().value.to_string(),
+            doc["category"].get_utf8().value.to_string()
+        );
+        recipes.push_back(recipe);
+    }
     return recipes;
 }
 
-void recipeManager::updateRecipe(const recipe& recipe) {
+bool recipeManager::updateRecipe(const std::string& title, const Recipe& updatedRecipe) {
     auto collection = db["recipes"];
-    bsoncxx::builder::stream::document filter_builder{};
-    filter_builder << "_id" << bsoncxx::oid(recipe.getId());
-    
-    bsoncxx::builder::stream::document update_builder{};
-    update_builder << "$set" << bsoncxx::builder::stream::open_document
-                   << "title" << recipe.getTitle()
-                   << "ingredients" << recipe.getIngredients()
-                   << "instructions" << recipe.getInstructions()
-                   << "servingSize" << 
+    bsoncxx::builder::stream::document filter{};
+    filter << "title" << title;
 
-recipe.getServingSize()
-                   << "cookTime" << recipe.getCookTime()
-                   << "category" << recipe.getCategory()
-                   << "type" << recipe.getType()
-                   << bsoncxx::builder::stream::close_document;
-    
-    collection.update_one(filter_builder.view(), update_builder.view());
+    bsoncxx::builder::stream::document 
+
+update{};
+    update << "$set" << bsoncxx::builder::stream::open_document
+           << "ingredients" << updatedRecipe.getIngredients()
+           << "instructions" << updatedRecipe.getInstructions()
+           << "servingSize" << updatedRecipe.getServingSize()
+           << "cookTime" << updatedRecipe.getCookTime()
+           << "cuisine" << updatedRecipe.getCuisine()
+           << "category" << updatedRecipe.getCategory()
+           << bsoncxx::builder::stream::close_document;
+
+    auto result = collection.update_one(filter.view(), update.view());
+
+    return result ? result->modified_count() > 0 : false;
 }
 
-void recipeManager::deleteRecipe(const std::string& id) {
+bool recipeManager::deleteRecipe(const std::string& title) {
     auto collection = db["recipes"];
-    bsoncxx::builder::stream::document filter_builder{};
-    filter_builder << "_id" << bsoncxx::oid{id};
-    
+    bsoncxx::builder::stream::document filter{};
+    filter << "title" << title;
 
-collection.delete_one(filter_builder.view());
+    auto result = collection.delete_one(filter.view());
+    return result ? result->deleted_count() > 0 : false;
 }
 
-std::vector<recipe> recipeManager::searchRecipes(const std::string& query) {
+std::vector<recipe> recipeManager::searchRecipes(const std::string& criteria) {
+    auto collection = db["recipes"];
+
     std::vector<recipe> recipes;
-    auto collection = db["recipes"];
-    auto cursor = collection.find(bsoncxx::builder::stream::document{} << "title" << bsoncxx::builder::stream::open_document << "$regex" << query << bsoncxx::builder::stream::close_document << bsoncxx::builder::stream::finalize);
-    
-    for (const auto& doc : cursor) {
-        recipes.emplace_back(
-            bsoncxx::to_json(doc["_id"].get_oid().value).to_string(),
+    bsoncxx::builder::stream::document filter{};
+    filter << "title" << bsoncxx::builder::stream::open_document
+           << "$regex" << criteria
+           << "$options" << "i" // case insensitive
+           << bsoncxx::builder::stream::close_document;
 
+    auto cursor = collection.find(filter.view());
+    for (auto&& doc : cursor) {
+        recipe recipe(
             doc["title"].get_utf8().value.to_string(),
             doc["ingredients"].get_utf8().value.to_string(),
             doc["instructions"].get_utf8().value.to_string(),
+
             doc["servingSize"].get_utf8().value.to_string(),
             doc["cookTime"].get_utf8().value.to_string(),
-            doc["category"].get_utf8().value.to_string(),
-            doc["type"].get_utf8().value.to_string()
+            doc["cuisine"].get_utf8().value.to_string(),
+            doc["category"].get_utf8().value.to_string()
         );
+        recipes.push_back(recipe);
     }
     return recipes;
-
 }
-

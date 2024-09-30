@@ -18,6 +18,14 @@ Recipe for a Disaster is a small recipe manager application, fundamentally built
 3.	Error Handling:
 	    - Include validation for user inputs (e.g., ensuring ingredient lists are not empty).
 
+## Current Functionality 
+1. Displays the Main Menu of functions.
+2. Add Recipe - Adds a new recipe.
+3. View Recipe - Displays an existing recipe.
+4. Update Recipe - Updates an existing recipe based on its title.
+5. Delete Recipe - Deletes a recipe based on the title.
+6. Recipe Search - Finds a recipe based on regex search.
+
 ## Next Steps
 - 	*File I/O Implementation:* Implement the loadRecipes and saveRecipes methods in RecipeManager to read from and write to files.
 - 	*User Input Validation:* Add error checking and validation for user inputs.

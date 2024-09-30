@@ -33,3 +33,6 @@
 
 # VS Code Config
 .vscode
+
+# environment file (not in use)
+.env

@@ -1,8 +1,0 @@
-[
-{
-  "directory": "/Users/alexandramccoy/RecipeForADisaster/build",
-  "command": "/usr/bin/clang++  -I/Users/alexandramccoy/RecipeForADisaster/include -g -arch arm64 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX14.4.sdk -o CMakeFiles/my_executable.dir/src/main.cpp.o -c /Users/alexandramccoy/RecipeForADisaster/src/main.cpp",
-  "file": "/Users/alexandramccoy/RecipeForADisaster/src/main.cpp",
-  "output": "CMakeFiles/my_executable.dir/src/main.cpp.o"
-}
-]

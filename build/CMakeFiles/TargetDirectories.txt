@@ -1,0 +1,3 @@
+/Users/alexandramccoy/RecipeForADisaster/build/CMakeFiles/RecipeForADisaster.dir
+/Users/alexandramccoy/RecipeForADisaster/build/CMakeFiles/edit_cache.dir
+/Users/alexandramccoy/RecipeForADisaster/build/CMakeFiles/rebuild_cache.dir

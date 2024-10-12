@@ -1,0 +1,20 @@
+[
+{
+  "directory": "/Users/alexandramccoy/RecipeForADisaster/build",
+  "command": "/Library/Developer/CommandLineTools/usr/bin/c++  -I/Users/alexandramccoy/RecipeForADisaster/include  -arch arm64 -o CMakeFiles/RecipeForADisaster.dir/src/main.cpp.o -c /Users/alexandramccoy/RecipeForADisaster/src/main.cpp",
+  "file": "/Users/alexandramccoy/RecipeForADisaster/src/main.cpp",
+  "output": "CMakeFiles/RecipeForADisaster.dir/src/main.cpp.o"
+},
+{
+  "directory": "/Users/alexandramccoy/RecipeForADisaster/build",
+  "command": "/Library/Developer/CommandLineTools/usr/bin/c++  -I/Users/alexandramccoy/RecipeForADisaster/include  -arch arm64 -o CMakeFiles/RecipeForADisaster.dir/src/recipe.cpp.o -c /Users/alexandramccoy/RecipeForADisaster/src/recipe.cpp",
+  "file": "/Users/alexandramccoy/RecipeForADisaster/src/recipe.cpp",
+  "output": "CMakeFiles/RecipeForADisaster.dir/src/recipe.cpp.o"
+},
+{
+  "directory": "/Users/alexandramccoy/RecipeForADisaster/build",
+  "command": "/Library/Developer/CommandLineTools/usr/bin/c++  -I/Users/alexandramccoy/RecipeForADisaster/include  -arch arm64 -o CMakeFiles/RecipeForADisaster.dir/src/recipeManager.cpp.o -c /Users/alexandramccoy/RecipeForADisaster/src/recipeManager.cpp",
+  "file": "/Users/alexandramccoy/RecipeForADisaster/src/recipeManager.cpp",
+  "output": "CMakeFiles/RecipeForADisaster.dir/src/recipeManager.cpp.o"
+}
+]

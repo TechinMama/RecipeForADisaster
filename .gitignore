@@ -31,8 +31,14 @@
 *.out
 *.app
 
+# Build directory (contains downloaded dependencies)
+build/
+
 # VS Code Config
 .vscode
 
 # environment file (not in use)
 .env
+
+# Local environment file
+QUICKSTART_GUIDE.md

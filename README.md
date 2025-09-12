@@ -1,63 +1,93 @@
 # RecipeForADisaster 🍳
 
-A modern C++ recipe management application with MongoDB backend, designed for learning object-oriented programming, database integration, and web service development. Features comprehensive validation, error handling, JSON serialization, and advanced search capabilities.
+[![C++](https://img.shields.io/badge/C%2B%2B-17-blue.svg)](https://isocpp.org/)
+[![CMake](https://img.shields.io/badge/CMake-3.16+-blue.svg)](https://cmake.org/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-4.0+-green.svg)](https://www.mongodb.com/)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-## 🚀 Features
+> A modern C++ recipe management application featuring MongoDB integration, REST API, and comprehensive validation. Perfect for learning object-oriented programming, database operations, and web service development.
 
-### Core Functionality
-- ✅ **Recipe Management**: Add, view, update, delete recipes
-- ✅ **Advanced Search**: Search by title, category, type, or combinations
-- ✅ **Pagination**: Efficient handling of large recipe collections
-- ✅ **Data Validation**: Comprehensive input validation with custom exceptions
-- ✅ **Error Handling**: Detailed error reporting with `OperationResult` structure
-- ✅ **JSON Serialization**: Complete JSON API implementation
-- ✅ **MongoDB Integration**: Robust database operations with connection pooling
-- ✅ **REST API**: Full CRUD operations via HTTP endpoints
-- ✅ **Web Interface**: Basic HTML interface with search and management
+## 📋 Table of Contents
 
-### Technical Features
-- **Object-Oriented Design**: Clean separation of concerns with `recipe` and `recipeManager` classes
-- **Cross-Platform**: CMake build system supporting Windows, macOS, and Linux
-- **Docker Support**: Containerized development environment with MongoDB
-- **Web Framework**: Crow C++ web framework for REST API implementation
-- **CORS Support**: Cross-origin resource sharing for web clients
-- **Comprehensive Testing**: Integration tests, API tests, and validation tests
-- **VS Code Integration**: Custom tasks for efficient development workflow
-- **CI/CD Ready**: GitHub Actions multi-platform builds
+- [✨ Features](#-features)
+- [🏗️ Architecture](#️-architecture)
+- [🚀 Quick Start](#-quick-start)
+- [📦 Installation](#-installation)
+- [🛠️ Build Instructions](#️-build-instructions)
+- [📖 Usage](#-usage)
+- [🌐 API Reference](#-api-reference)
+- [🧪 Testing](#-testing)
+- [🔧 Configuration](#-configuration)
+- [📚 Documentation](#-documentation)
+- [🤝 Contributing](#-contributing)
+- [📄 License](#-license)
+
+---
+
+## ✨ Features
+
+### 🎯 Core Functionality
+- ✅ **Complete CRUD Operations** - Create, Read, Update, Delete recipes
+- ✅ **Advanced Search** - Search by title, category, type, or combinations
+- ✅ **Pagination Support** - Efficient handling of large recipe collections
+- ✅ **Data Validation** - Comprehensive input validation with custom exceptions
+- ✅ **Error Handling** - Detailed error reporting with structured responses
+- ✅ **JSON Serialization** - Complete JSON API implementation
+- ✅ **MongoDB Integration** - Robust database operations with connection pooling
+
+### 🌐 Web & API Features
+- ✅ **REST API** - Full CRUD operations via HTTP endpoints
+- ✅ **Web Interface** - Clean HTML interface with search and management
+- ✅ **CORS Support** - Cross-origin resource sharing for web clients
+- ✅ **Health Monitoring** - Database connection and system health checks
+- ✅ **Crow Framework** - Modern C++ web framework integration
+
+### 🛠️ Technical Features
+- ✅ **Object-Oriented Design** - Clean separation with `recipe` and `recipeManager` classes
+- ✅ **Cross-Platform** - CMake build system supporting Windows, macOS, and Linux
+- ✅ **Docker Support** - Containerized development environment
+- ✅ **Comprehensive Testing** - Integration tests, API tests, and validation tests
+- ✅ **VS Code Integration** - Custom tasks for efficient development workflow
+- ✅ **CI/CD Ready** - GitHub Actions multi-platform builds
+
+---
 
 ## 🏗️ Architecture
 
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Console App   │────│  recipeManager  │────│   MongoDB       │
-│   (main.cpp)    │    │  (Business Logic│    │   Database      │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │
-         │                       │                       │
-         ▼                       ▼                       ▼
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Web Server    │────│  REST API       │────│   Connection    │
-│   (web_server) │    │  (Crow Routes)  │    │   Pooling       │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │
-         ▼                       ▼
-┌─────────────────┐    ┌─────────────────┐
-│   recipe Class  │    │  Validation &   │
-│   (Data Model)  │    │  Error Handling │
-└─────────────────┘    └─────────────────┘
+```mermaid
+graph TB
+    A[Console App<br/>main.cpp] --> B[recipeManager<br/>Business Logic]
+    C[Web Server<br/>web_server.cpp] --> B
+    B --> D[MongoDB<br/>Database]
+
+    E[REST API<br/>Crow Routes] --> B
+    F[Web Interface<br/>HTML/CSS] --> E
+
+    G[recipe Class<br/>Data Model] --> B
+    H[Validation<br/>Error Handling] --> G
+
+    style A fill:#e1f5fe
+    style C fill:#e1f5fe
+    style B fill:#fff3e0
+    style D fill:#e8f5e8
+    style E fill:#f3e5f5
+    style G fill:#fff3e0
+    style H fill:#ffebee
 ```
 
 ### Key Components
-- **`recipe` class**: Data model with validation and JSON serialization
-- **`recipeManager` class**: Business logic layer handling all database operations
-- **`web_server` executable**: REST API server built with Crow framework
-- **Custom Exceptions**: `ValidationError` and `DatabaseError` for robust error handling
-- **JSON API**: Complete REST API with Crow web framework integration
 
-### Design Patterns Used
+| Component | Description | Technology |
+|-----------|-------------|------------|
+| **recipe** | Data model with validation and JSON serialization | C++ Class |
+| **recipeManager** | Business logic layer handling database operations | C++ Class |
+| **web_server** | REST API server with Crow framework | Executable |
+| **Console App** | Interactive command-line interface | Executable |
+| **MongoDB** | Document database for recipe storage | Database |
 
-#### Repository Pattern
-The `recipeManager` class implements the Repository pattern, providing a clean abstraction over database operations:
+### Design Patterns
+
+#### 🏭 Repository Pattern
 ```cpp
 class recipeManager {
 public:
@@ -69,112 +99,73 @@ public:
 };
 ```
 
-#### Factory Pattern
-Recipe objects are created through validated constructors, implementing a Factory pattern for object creation:
+#### 🎯 Factory Pattern
 ```cpp
 // Validated constructor ensures data integrity
 recipe newRecipe("Title", "Ingredients", "Instructions",
                  "4 servings", "20 minutes", "Italian", "Main Course");
 ```
 
-#### Strategy Pattern
-Different search strategies are implemented for various query types:
+#### 🔄 Strategy Pattern
 ```cpp
-// Title search
-auto results = manager.searchRecipes("pasta");
-
-// Category filtering
-auto italianRecipes = manager.searchByCategory("Italian");
-
-// Type filtering
-auto mainCourses = manager.searchByType("Main Course");
+// Multiple search strategies
+auto titleResults = manager.searchRecipes("pasta");
+auto categoryResults = manager.searchByCategory("Italian");
+auto typeResults = manager.searchByType("Main Course");
 ```
 
-### Database Schema
+---
 
-Recipes are stored in MongoDB with the following document structure:
-```json
-{
-  "_id": ObjectId("..."),
-  "title": "Chocolate Cake",
-  "ingredients": "Flour, Sugar, Cocoa, Eggs, Milk",
-  "instructions": "Mix ingredients and bake at 350°F for 30 minutes",
-  "servingSize": "8 servings",
-  "cookTime": "45 minutes",
-  "category": "Dessert",
-  "type": "Cake"
-}
+## 🚀 Quick Start
+
+### ⚡ One-Command Setup
+```bash
+# Clone and setup
+git clone https://github.com/TechinMama/RecipeForADisaster.git
+cd RecipeForADisaster
+
+# Start MongoDB (Docker)
+docker run -d --name recipeforadisaster_mongodb -p 27017:27017 mongo:latest --noauth
+
+# Set environment and build
+export MONGODB_URI="mongodb://localhost:27017"
+cmake -S . -B build/ && cmake --build build/
+
+# Start web server
+./build/web_server
 ```
 
-#### Indexes
-- **Title Index**: For efficient search operations
-- **Category Index**: For category-based filtering
-- **Type Index**: For type-based filtering
+### 🌐 Access Your App
+- **Web Interface**: http://localhost:8080
+- **API Documentation**: http://localhost:8080/api
+- **Health Check**: http://localhost:8080/api/health
 
-### Error Handling Strategy
+---
 
-#### Custom Exceptions
-```cpp
-class ValidationError : public std::runtime_error {
-public:
-    ValidationError(const std::string& message) : std::runtime_error(message) {}
-};
+## 📦 Installation
 
-class DatabaseError : public std::runtime_error {
-public:
-    DatabaseError(const std::string& message) : std::runtime_error(message) {}
-};
-```
+### 📋 Prerequisites
 
-#### Operation Results
-Database operations return detailed results:
-```cpp
-struct OperationResult {
-    bool success;
-    std::string errorMessage;
-    std::string data; // Optional additional data
-};
-```
+| Component | Version | Installation |
+|-----------|---------|--------------|
+| **C++ Compiler** | GCC 9+, Clang 10+, MSVC 2019+ | System package manager |
+| **CMake** | 3.16+ | `brew install cmake` / `apt install cmake` |
+| **MongoDB C++ Driver** | 4.1.2+ | `brew install mongo-cxx-driver` |
+| **Docker** | Latest | `brew install docker` (macOS) |
 
-## 📋 Recent Updates
+### 🖥️ Platform-Specific Setup
 
-### Version 1.1.0 - Web Interface Implementation
-- ✅ **Crow Framework Integration**: Complete REST API implementation
-- ✅ **Web Server**: Standalone executable with all CRUD operations
-- ✅ **MongoDB Driver Update**: Compatibility with MongoDB C++ driver 4.1.2+
-- ✅ **API Testing**: Comprehensive test suite for all endpoints
-- ✅ **Build System**: Updated CMake configuration for web server target
-- ✅ **Documentation**: Complete API documentation and troubleshooting guide
-
-### Key Improvements
-- **Lambda Capture Fixes**: Resolved compilation issues with route handlers
-- **JSON Serialization**: Proper wvalue handling for API responses
-- **Error Handling**: Comprehensive error responses with proper HTTP status codes
-- **CORS Support**: Cross-origin resource sharing for web clients
-- **Health Checks**: Database connection monitoring endpoint
-- **Pagination**: Efficient handling of large datasets
-
-## 📋 Prerequisites
-
-### System Requirements
-- **C++ Compiler**: GCC 9+, Clang 10+, or MSVC 2019+
-- **CMake**: Version 3.16 or higher
-- **MongoDB**: Local installation or MongoDB Atlas account
-- **MongoDB C++ Driver**: Version 4.1.2+ (latest stable)
-- **Crow Framework**: Automatically downloaded via CMake (no manual installation required)
-
-### Installing Dependencies
-
-#### macOS (with Homebrew)
+#### macOS (Homebrew)
 ```bash
 # Install build tools
 brew install cmake gcc
 
-# Install MongoDB C++ driver (version 4.1.2+)
+# Install MongoDB C++ driver
 brew install mongo-cxx-driver
 
 # Verify installation
 brew list mongo-cxx-driver
+pkg-config --modversion libmongocxx
 ```
 
 #### Ubuntu/Debian
@@ -183,7 +174,7 @@ brew list mongo-cxx-driver
 sudo apt-get update
 sudo apt-get install build-essential cmake
 
-# Install MongoDB C++ driver (version 4.1.2+)
+# Install MongoDB C++ driver
 sudo apt-get install libmongocxx-dev libbsoncxx-dev
 
 # Verify installation
@@ -191,113 +182,628 @@ pkg-config --modversion libmongocxx
 ```
 
 #### Windows
-```bash
-# Install MongoDB C++ driver via vcpkg (version 4.1.2+)
+```powershell
+# Install MongoDB C++ driver via vcpkg
 vcpkg install mongo-cxx-driver
 
 # Or download from MongoDB website
 # https://www.mongodb.com/docs/drivers/cxx/#installation
 ```
 
-### MongoDB Setup
+### 🐳 MongoDB Setup
 
-#### Local MongoDB Installation
+#### Docker (Recommended)
 ```bash
-# macOS with Homebrew
+# Quick setup
+./setup-dev.sh
+
+# Manual setup
+docker run -d --name recipeforadisaster_mongodb \
+  -p 27017:27017 \
+  -v mongodb_data:/data/db \
+  mongo:latest --noauth
+```
+
+#### Local Installation
+```bash
+# macOS
 brew install mongodb-community
 brew services start mongodb-community
 
-# Ubuntu/Debian
+# Ubuntu
 sudo apt-get install mongodb
 sudo systemctl start mongodb
-
-# Windows
-# Download and install from: https://www.mongodb.com/try/download/community
 ```
 
-#### Docker (Recommended for Development)
-```bash
-# Quick setup with provided script
-./setup-dev.sh
-
-# Or manually
-docker run -d -p 27017:27017 --name mongodb mongo:latest
-```
+---
 
 ## 🛠️ Build Instructions
 
-### Quick Start (Local MongoDB)
+### 📦 Standard Build
 ```bash
-# Clone the repository
-git clone https://github.com/TechinMama/RecipeForADisaster.git
-cd RecipeForADisaster
-
-# Set MongoDB connection
-export MONGODB_URI="mongodb://localhost:27017"
-
-# Build with CMake
+# Configure
 cmake -S . -B build/
+
+# Build all targets
 cmake --build build/
 
-# Run console application
-./build/RecipeForADisaster
-
-# Or run web server
-./build/web_server
+# Verify executables
+ls -la build/
+# RecipeForADisaster  web_server  tests
 ```
 
-### Docker Development Environment
+### 🎯 Build Options
+
+| Build Type | Command | Use Case |
+|------------|---------|----------|
+| **Release** | `cmake -S . -B build/ -DCMAKE_BUILD_TYPE=Release` | Production deployment |
+| **Debug** | `cmake -S . -B build/ -DCMAKE_BUILD_TYPE=Debug` | Development with debugging |
+| **Testing** | `cmake -S . -B build/ -DBUILD_TESTING=ON` | Run test suite |
+
+### 🎨 Build Targets
+
 ```bash
-# Start MongoDB with Docker
-./setup-dev.sh
+# Build specific targets
+cmake --build build/ --target RecipeForADisaster  # Console app only
+cmake --build build/ --target web_server         # Web server only
+cmake --build build/ --target tests              # Tests only
 
-# Or manually with docker-compose
-docker-compose up -d
-
-# Build and run
-cmake -S . -B build/
-cmake --build build/
-./build/web_server
+# Clean build
+rm -rf build/
+cmake -S . -B build/ && cmake --build build/
 ```
 
-### Build Options
+### 🐳 Docker Build
 ```bash
-# Debug build
-cmake -S . -B build-debug/ -DCMAKE_BUILD_TYPE=Debug
-cmake --build build-debug/
+# Build with Docker Compose
+docker-compose up --build
 
-# Release build with optimizations
-cmake -S . -B build-release/ -DCMAKE_BUILD_TYPE=Release
-cmake --build build-release/
-
-# Build with tests
-cmake -S . -B build/ -DBUILD_TESTING=ON
-cmake --build build/
-ctest --test-dir build/
+# Or build specific service
+docker-compose build web_server
+docker-compose up web_server
 ```
 
-### Building Web Server Only
-```bash
-# Build only the web server
-cmake -S . -B build/
-cmake --build build/ --target web_server
-./build/web_server
-```
+---
 
 ## 📖 Usage
 
-### Basic Operations
+### 💻 Console Application
+
+```bash
+# Start the console app
+export MONGODB_URI="mongodb://localhost:27017"
+./build/RecipeForADisaster
+```
+
+#### Interactive Menu
+```
+Recipe Manager Menu:
+1. Add Recipe
+2. View Recipes
+3. Search Recipes
+4. Update Recipe
+5. Delete Recipe
+6. Exit
+
+Enter your choice (1-6): 1
+```
+
+#### Programmatic Usage
 ```cpp
 #include "recipeManager.h"
 
-// Initialize with MongoDB URI
+// Initialize
 mongocxx::instance instance{};
 recipeManager manager("mongodb://localhost:27017");
 
-// Add a recipe
+// Add recipe
 recipe pasta("Pasta Carbonara", "Spaghetti, Eggs, Bacon, Cheese",
-             "Cook pasta, mix with eggs and cheese, add bacon", "4 servings", "20 minutes", "Italian", "Main Course");
+             "Cook pasta, mix with eggs and cheese, add bacon",
+             "4 servings", "20 minutes", "Italian", "Main Course");
+
 auto result = manager.addRecipe(pasta);
+if (result.success) {
+    std::cout << "✅ Recipe added successfully!" << std::endl;
+} else {
+    std::cout << "❌ Error: " << result.errorMessage << std::endl;
+}
+
+// Search recipes
+auto recipes = manager.searchRecipes("pasta");
+std::cout << "Found " << recipes.size() << " recipes" << std::endl;
+```
+
+### 🌐 Web API Usage
+
+```bash
+# Start web server
+./build/web_server
+
+# API is now available at http://localhost:8080
+```
+
+#### JavaScript Example
+```javascript
+// Add a recipe
+fetch('/api/recipes', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    title: "Chocolate Cake",
+    ingredients: "Flour, Sugar, Cocoa, Eggs, Milk",
+    instructions: "Mix ingredients and bake at 350°F for 30 minutes",
+    servingSize: "8 servings",
+    cookTime: "45 minutes",
+    category: "Dessert",
+    type: "Cake"
+  })
+})
+.then(response => response.json())
+.then(data => console.log(data));
+
+// Get all recipes
+fetch('/api/recipes')
+  .then(response => response.json())
+  .then(data => console.log(data));
+```
+
+#### Python Example
+```python
+import requests
+
+BASE_URL = "http://localhost:8080"
+
+# Add recipe
+recipe_data = {
+    "title": "Pizza Margherita",
+    "ingredients": "Dough, Tomato Sauce, Mozzarella, Basil",
+    "instructions": "Bake dough with toppings",
+    "servingSize": "4 servings",
+    "cookTime": "25 minutes",
+    "category": "Italian",
+    "type": "Main Course"
+}
+
+response = requests.post(f"{BASE_URL}/api/recipes", json=recipe_data)
+print(response.json())
+
+# Get recipes
+response = requests.get(f"{BASE_URL}/api/recipes")
+recipes = response.json()
+print(f"Found {len(recipes['data']['recipes'])} recipes")
+```
+
+---
+
+## 🌐 API Reference
+
+### 📍 Base URL
+```
+http://localhost:8080/api
+```
+
+### 🔗 Endpoints
+
+| Method | Endpoint | Description | Response |
+|--------|----------|-------------|----------|
+| `GET` | `/health` | System health check | `200 OK` |
+| `GET` | `/recipes` | Get all recipes (paginated) | `200 OK` |
+| `GET` | `/recipes/search?q={query}` | Search recipes by title | `200 OK` |
+| `GET` | `/recipes/categories/{category}` | Filter by category | `200 OK` |
+| `GET` | `/recipes/types/{type}` | Filter by type | `200 OK` |
+| `POST` | `/recipes` | Create new recipe | `200 OK` / `400 Bad Request` |
+| `PUT` | `/recipes/{title}` | Update existing recipe | `200 OK` / `404 Not Found` |
+| `DELETE` | `/recipes/{title}` | Delete recipe | `200 OK` / `404 Not Found` |
+
+### 📄 Request/Response Format
+
+#### Recipe Object
+```json
+{
+  "title": "string (required)",
+  "ingredients": "string (required)",
+  "instructions": "string (required)",
+  "servingSize": "string (required)",
+  "cookTime": "string (required)",
+  "category": "string (required)",
+  "type": "string (required)"
+}
+```
+
+#### Success Response
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Operation completed successfully",
+    "title": "Recipe Title"
+  }
+}
+```
+
+#### Error Response
+```json
+{
+  "success": false,
+  "error": "Error description",
+  "code": 400
+}
+```
+
+### 🔍 Query Parameters
+
+#### Pagination
+```bash
+GET /api/recipes?page=1&pageSize=10
+```
+
+#### Search
+```bash
+GET /api/recipes/search?q=pasta
+GET /api/recipes/categories/Italian
+GET /api/recipes/types/Main%20Course
+```
+
+### 📊 Response Examples
+
+#### Health Check
+```bash
+curl http://localhost:8080/api/health
+```
+```json
+{
+  "success": true,
+  "data": {
+    "status": "healthy",
+    "database_connected": true,
+    "timestamp": 1726172800
+  }
+}
+```
+
+#### Get Recipes
+```bash
+curl http://localhost:8080/api/recipes
+```
+```json
+{
+  "success": true,
+  "data": {
+    "page": 1,
+    "pageSize": 10,
+    "totalCount": 25,
+    "totalPages": 3,
+    "recipes": [...]
+  }
+}
+```
+
+#### Add Recipe
+```bash
+curl -X POST http://localhost:8080/api/recipes \
+  -H "Content-Type: application/json" \
+  -d '{"title": "Test Recipe", "ingredients": "Test", "instructions": "Test", "servingSize": "4", "cookTime": "30min", "category": "Test", "type": "Test"}'
+```
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Recipe added successfully",
+    "title": "Test Recipe"
+  }
+}
+```
+
+---
+
+## 🧪 Testing
+
+### 🏃 Run Tests
+
+```bash
+# Build with tests
+cmake -S . -B build/ -DBUILD_TESTING=ON
+cmake --build build/
+
+# Run all tests
+ctest --test-dir build/ --output-on-failure
+
+# Run specific test
+ctest --test-dir build/ -R IntegrationTests
+```
+
+### 🧪 Test Categories
+
+| Test Type | Description | Command |
+|-----------|-------------|---------|
+| **Integration** | Database operations and error handling | `ctest -R IntegrationTests` |
+| **Validation** | Input validation and edge cases | `ctest -R ValidationTests` |
+| **API** | REST endpoints and web server | `python3 test_api.py` |
+| **Performance** | Search and pagination benchmarks | `ctest -R PerformanceTests` |
+
+### 🐍 API Testing Script
+
+```bash
+# Run comprehensive API tests
+python3 test_api.py
+
+# Expected output:
+# Testing RecipeForADisaster Web API...
+# ==================================================
+#
+# Testing Health Check:
+# ✅ PASSED
+#
+# Testing Get Recipes:
+# ✅ PASSED
+#
+# Testing Add Recipe:
+# ✅ PASSED
+#
+# Testing Search Recipes:
+# ✅ PASSED
+#
+# Results: 4/4 tests passed
+```
+
+### 🔍 Manual Testing
+
+```bash
+# Test console application
+./build/RecipeForADisaster
+
+# Test web server
+./build/web_server &
+curl http://localhost:8080/api/health
+curl http://localhost:8080/api/recipes
+
+# Test with sample data
+curl -X POST http://localhost:8080/api/recipes \
+  -H "Content-Type: application/json" \
+  -d '{"title": "Test", "ingredients": "Test", "instructions": "Test", "servingSize": "4", "cookTime": "30min", "category": "Test", "type": "Test"}'
+```
+
+---
+
+## 🔧 Configuration
+
+### 🌍 Environment Variables
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `MONGODB_URI` | MongoDB connection string | `mongodb://localhost:27017` | Yes |
+| `PORT` | Web server port | `8080` | No |
+
+### 📁 Configuration Files
+
+#### `.env` (Optional)
+```bash
+# MongoDB Configuration
+MONGODB_URI=mongodb://localhost:27017
+DB_NAME=RecipeManagerDB
+
+# Web Server Configuration
+PORT=8080
+HOST=0.0.0.0
+
+# Development Settings
+DEBUG=true
+LOG_LEVEL=info
+```
+
+#### `CMakeLists.txt` Build Configuration
+```cmake
+# Build options
+option(BUILD_TESTING "Build test suite" ON)
+option(BUILD_WEB_SERVER "Build web server" ON)
+
+# Compiler settings
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# MongoDB settings
+find_package(mongocxx REQUIRED)
+find_package(bsoncxx REQUIRED)
+```
+
+### 🐳 Docker Configuration
+
+#### `docker-compose.yml`
+```yaml
+version: '3.8'
+services:
+  mongodb:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    command: --noauth
+
+  web_server:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017
+    depends_on:
+      - mongodb
+
+volumes:
+  mongodb_data:
+```
+
+---
+
+## 📚 Documentation
+
+### 📖 Available Documentation
+
+| Document | Description | Location |
+|----------|-------------|----------|
+| **Quick Start Guide** | Complete setup and usage guide | `QUICKSTART_GUIDE.md` |
+| **Functional Testing** | Comprehensive testing procedures | `FUNCTIONAL_TESTING_GUIDE.md` |
+| **API Documentation** | Detailed API reference | `README.md` (this file) |
+| **Architecture Guide** | System design and patterns | `.github/copilot-instructions.md` |
+
+### 🔗 Useful Links
+
+- **GitHub Repository**: https://github.com/TechinMama/RecipeForADisaster
+- **MongoDB C++ Driver**: https://www.mongodb.com/docs/drivers/cxx/
+- **Crow Framework**: https://github.com/CrowCpp/Crow
+- **CMake Documentation**: https://cmake.org/documentation/
+
+### 📋 Code Examples
+
+#### Basic Recipe Management
+```cpp
+// Include headers
+#include "recipe.h"
+#include "recipeManager.h"
+
+// Initialize MongoDB
+mongocxx::instance instance{};
+
+// Create recipe manager
+recipeManager manager("mongodb://localhost:27017");
+
+// Create and add recipe
+recipe newRecipe("Title", "Ingredients", "Instructions",
+                 "4 servings", "20 minutes", "Italian", "Main Course");
+auto result = manager.addRecipe(newRecipe);
+```
+
+#### Error Handling
+```cpp
+try {
+    recipe invalidRecipe("", "Ingredients", "Instructions", ...); // Empty title
+} catch (const recipe::ValidationError& e) {
+    std::cout << "Validation error: " << e.what() << std::endl;
+} catch (const recipeManager::DatabaseError& e) {
+    std::cout << "Database error: " << e.what() << std::endl;
+}
+```
+
+#### JSON Operations
+```cpp
+// Convert to JSON
+std::string json = recipe.toJson();
+
+// Parse from JSON
+recipe fromJson = recipe::fromJson(jsonString);
+
+// API operations
+std::string recipesJson = manager.getRecipesJson();
+std::string addResult = manager.addRecipeJson(jsonInput);
+```
+
+---
+
+## 🤝 Contributing
+
+### 🚀 Getting Started
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
+3. Make your changes and add tests
+4. Run the test suite: `ctest --test-dir build/`
+5. Commit your changes: `git commit -m 'Add amazing feature'`
+6. Push to the branch: `git push origin feature/amazing-feature`
+7. Open a Pull Request
+
+### 📝 Development Guidelines
+
+#### Code Style
+- Use C++17 features and standard library
+- Follow Google C++ Style Guide
+- Use meaningful variable and function names
+- Add documentation for public APIs
+
+#### Testing
+- Write tests for new features
+- Ensure all tests pass before submitting PR
+- Test both console and web interfaces
+- Include integration tests for database operations
+
+#### Commit Messages
+```
+feat: add new recipe search functionality
+fix: resolve MongoDB connection timeout issue
+docs: update API documentation
+test: add validation tests for recipe creation
+```
+
+### 🐛 Reporting Issues
+- Use GitHub Issues for bug reports
+- Include steps to reproduce
+- Provide system information (OS, compiler, MongoDB version)
+- Attach relevant log files
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+```
+MIT License
+
+Copyright (c) 2024 RecipeForADisaster
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+```
+
+---
+
+## 🙏 Acknowledgments
+
+- **Crow Framework** - Modern C++ web framework
+- **MongoDB C++ Driver** - Official MongoDB driver for C++
+- **CMake** - Cross-platform build system
+- **Docker** - Containerization platform
+
+---
+
+## 📞 Support
+
+### 💬 Getting Help
+- **Documentation**: Check `QUICKSTART_GUIDE.md` and `FUNCTIONAL_TESTING_GUIDE.md`
+- **Issues**: [GitHub Issues](https://github.com/TechinMama/RecipeForADisaster/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/TechinMama/RecipeForADisaster/discussions)
+
+### 🔧 Troubleshooting
+- **Build Issues**: Ensure MongoDB C++ driver is properly installed
+- **Runtime Errors**: Check MongoDB connection and environment variables
+- **API Problems**: Verify web server is running on correct port
+
+---
+
+## 📚 Code Examples
+
+#### Basic Recipe Management
+```cpp
+// Include headers
+#include "recipe.h"
+#include "recipeManager.h"
+
+// Initialize MongoDB
+mongocxx::instance instance{};
+
+// Create recipe manager
+recipeManager manager("mongodb://localhost:27017");
+
+// Create and add recipe
+recipe newRecipe("Title", "Ingredients", "Instructions",
+                 "4 servings", "20 minutes", "Italian", "Main Course");
+auto result = manager.addRecipe(newRecipe);
+
 if (result.success) {
     std::cout << "Recipe added successfully!" << std::endl;
 } else {
@@ -324,6 +830,20 @@ std::string json = pasta.toJson();
 std::string jsonInput = R"(
 {
     "title": "Pizza Margherita",
+    "ingredients": "Dough, Tomato Sauce, Mozzarella, Basil",
+    "instructions": "Bake dough with toppings",
+    "servingSize": "4 servings",
+    "cookTime": "25 minutes",
+    "category": "Italian",
+    "type": "Main Course"
+}
+)";
+recipe pizza = recipe::fromJson(jsonInput);
+
+// JSON API methods in recipeManager
+std::string recipesJson = manager.getRecipesJson();
+std::string addResult = manager.addRecipeJson(jsonInput);
+```
     "ingredients": "Dough, Tomato Sauce, Mozzarella, Basil",
     "instructions": "Bake dough with toppings",
     "servingSize": "4 servings",

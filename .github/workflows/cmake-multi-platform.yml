@@ -62,20 +62,23 @@ jobs:
           libbson-dev
         
         # Install MongoDB C++ driver
-        wget https://github.com/mongodb/mongo-cxx-driver/releases/download/r3.10.1/mongo-cxx-driver-r3.10.1.tar.gz
-        tar -xzf mongo-cxx-driver-r3.10.1.tar.gz
-        cd mongo-cxx-driver-r3.10.1
+        wget https://github.com/mongodb/mongo-cxx-driver/releases/download/r3.10.2/mongo-cxx-driver-r3.10.2.tar.gz
+        tar -xzf mongo-cxx-driver-r3.10.2.tar.gz
+        cd mongo-cxx-driver-r3.10.2
         mkdir -p build
         cd build
         cmake .. \
           -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_INSTALL_PREFIX=/usr/local \
           -DBUILD_SHARED_LIBS=ON \
+          -DCMAKE_CXX_STANDARD=17 \
+          -DBSONCXX_POLY_USE_STD_EXPERIMENTAL=OFF \
+          -DBSONCXX_POLY_USE_STD=ON \
           -DBSONCXX_POLY_USE_MNMLSTC=OFF \
-          -DBSONCXX_POLY_USE_STD=ON
+          -DBSONCXX_POLY_USE_BOOST=OFF
         sudo cmake --build . --target install
         cd ../..
-        rm -rf mongo-cxx-driver-r3.10.1*
+        rm -rf mongo-cxx-driver-r3.10.2*
         
         # Verify installation
         ls -la /usr/local/lib/cmake/

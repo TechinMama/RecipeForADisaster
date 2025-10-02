@@ -59,14 +59,32 @@ find_package(bsoncxx QUIET)
 if(NOT mongocxx_FOUND OR NOT bsoncxx_FOUND)
     message(STATUS "MongoDB C++ driver not found via find_package, using manual paths")
     
-    # Try to find headers automatically
+    # Try to find headers automatically - check both v_noabi and direct paths
     find_path(MONGOCXX_INCLUDE_DIR mongocxx/client.hpp
         PATHS /usr/local/include /opt/homebrew/include /usr/include
         PATH_SUFFIXES mongocxx/v_noabi mongocxx)
     
+    # If not found in v_noabi, try direct mongocxx path
+    if(NOT MONGOCXX_INCLUDE_DIR)
+        find_path(MONGOCXX_INCLUDE_DIR mongocxx/client.hpp
+            PATHS /usr/local/include/mongocxx/v_noabi /opt/homebrew/include/mongocxx/v_noabi /usr/include/mongocxx/v_noabi)
+        if(MONGOCXX_INCLUDE_DIR)
+            # Found in v_noabi, need to add parent directory
+            get_filename_component(MONGOCXX_INCLUDE_DIR "${MONGOCXX_INCLUDE_DIR}" DIRECTORY)
+        endif()
+    endif()
+    
     find_path(BSONCXX_INCLUDE_DIR bsoncxx/document.hpp
         PATHS /usr/local/include /opt/homebrew/include /usr/include
         PATH_SUFFIXES bsoncxx/v_noabi bsoncxx)
+    
+    if(NOT BSONCXX_INCLUDE_DIR)
+        find_path(BSONCXX_INCLUDE_DIR bsoncxx/document.hpp
+            PATHS /usr/local/include/bsoncxx/v_noabi /opt/homebrew/include/bsoncxx/v_noabi /usr/include/bsoncxx/v_noabi)
+        if(BSONCXX_INCLUDE_DIR)
+            get_filename_component(BSONCXX_INCLUDE_DIR "${BSONCXX_INCLUDE_DIR}" DIRECTORY)
+        endif()
+    endif()
     
     find_library(MONGOCXX_LIBRARY mongocxx
         PATHS /usr/local/lib /opt/homebrew/lib /usr/lib)

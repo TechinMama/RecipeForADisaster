@@ -1,9 +1,12 @@
 #include <crow.h>
 #include <crow/middlewares/cors.h>
 #include "recipeManager.h"
+#include "aiService.h"
+#include "vaultService.h"
 #include <iostream>
 #include <string>
 #include <vector>
+#include <memory>
 
 // Custom middleware for error handling
 struct ErrorHandler {
@@ -22,21 +25,104 @@ int main() {
     // Initialize MongoDB instance
     mongocxx::instance instance{};
 
-    // Initialize recipe manager
-    const char* mongoUri = std::getenv("MONGODB_URI");
-    if (!mongoUri) {
-        mongoUri = "mongodb://localhost:27017";
+    // Initialize Vault service (optional - fallback to environment variables if not configured)
+    std::unique_ptr<VaultService> vaultService = nullptr;
+    const char* vaultAddress = std::getenv("VAULT_ADDR");
+    const char* vaultToken = std::getenv("VAULT_TOKEN");
+
+    if (vaultAddress && vaultToken) {
+        try {
+            VaultService::VaultConfig vaultConfig;
+            vaultConfig.address = vaultAddress;
+            vaultConfig.token = vaultToken;
+
+            vaultService = std::make_unique<VaultService>(vaultConfig);
+            std::cout << "Vault service initialized successfully!" << std::endl;
+        } catch (const std::exception& e) {
+            std::cout << "Warning: Failed to initialize Vault service: " << e.what() << std::endl;
+            std::cout << "Falling back to environment variable configuration." << std::endl;
+            vaultService = nullptr;
+        }
+    } else {
+        std::cout << "Vault not configured. Using environment variables for credentials." << std::endl;
+        std::cout << "Set VAULT_ADDR and VAULT_TOKEN to enable Vault-based credential management." << std::endl;
     }
 
-    recipeManager manager(mongoUri);
+    // Initialize recipe manager
+    std::unique_ptr<recipeManager> managerPtr;
+
+    if (vaultService) {
+        // Use Vault for secure credential retrieval
+        try {
+            managerPtr = std::make_unique<recipeManager>(vaultService.get(), "database/mongodb");
+        } catch (const recipeManager::DatabaseError& e) {
+            std::cerr << "Failed to initialize database with Vault credentials: " << e.what() << std::endl;
+            return 1;
+        }
+    } else {
+        // Fallback to environment variables
+        const char* mongoUri = std::getenv("MONGODB_URI");
+        if (!mongoUri) {
+            mongoUri = "mongodb://localhost:27017";
+        }
+
+        try {
+            managerPtr = std::make_unique<recipeManager>(mongoUri);
+        } catch (const recipeManager::DatabaseError& e) {
+            std::cerr << "Failed to connect to MongoDB. Please check your connection string." << std::endl;
+            return 1;
+        }
+    }
+
+    recipeManager& manager = *managerPtr;
 
     // Check database connection
     if (!manager.isConnected()) {
-        std::cerr << "Failed to connect to MongoDB. Please check your connection string." << std::endl;
+        std::cerr << "Failed to connect to MongoDB." << std::endl;
         return 1;
     }
 
     std::cout << "Connected to MongoDB successfully!" << std::endl;
+
+    // Initialize AI service (optional - will be null if not configured)
+    std::unique_ptr<AIService> aiService = nullptr;
+
+    if (vaultService) {
+        // Use Vault for secure credential retrieval
+        try {
+            aiService = std::make_unique<AIService>(vaultService.get(), "ai/azure-openai");
+            if (aiService->isConnected()) {
+                std::cout << "Connected to Azure OpenAI successfully!" << std::endl;
+            } else {
+                std::cout << "Warning: Azure OpenAI service initialized but connection test failed." << std::endl;
+            }
+        } catch (const AIService::AIServiceError& e) {
+            std::cout << "Warning: Failed to initialize Azure OpenAI service with Vault: " << e.what() << std::endl;
+            aiService = nullptr;
+        }
+    } else {
+        // Fallback to environment variables
+        const char* azureEndpoint = std::getenv("AZURE_OPENAI_ENDPOINT");
+        const char* azureApiKey = std::getenv("AZURE_OPENAI_KEY");
+        const char* azureDeployment = std::getenv("AZURE_OPENAI_DEPLOYMENT");
+
+        if (azureEndpoint && azureApiKey && azureDeployment) {
+            try {
+                aiService = std::make_unique<AIService>(azureEndpoint, azureApiKey, azureDeployment);
+                if (aiService->isConnected()) {
+                    std::cout << "Connected to Azure OpenAI successfully!" << std::endl;
+                } else {
+                    std::cout << "Warning: Azure OpenAI service initialized but connection test failed." << std::endl;
+                }
+            } catch (const AIService::AIServiceError& e) {
+                std::cout << "Warning: Failed to initialize Azure OpenAI service: " << e.what() << std::endl;
+                aiService = nullptr;
+            }
+        } else {
+            std::cout << "Azure OpenAI not configured. Recipe generation features will be unavailable." << std::endl;
+            std::cout << "Set AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_KEY, and AZURE_OPENAI_DEPLOYMENT to enable AI features." << std::endl;
+        }
+    }
 
     // Create Crow app with CORS middleware
     crow::App<crow::CORSHandler, ErrorHandler> app;
@@ -323,6 +409,91 @@ int main() {
         return createSuccessResponse(data);
     });
 
+    // POST /api/recipes/generate - Generate recipe using AI
+    CROW_ROUTE(app, "/api/recipes/generate")
+    .methods("POST"_method)
+    ([&aiService, &createErrorResponse, &createSuccessResponse](const crow::request& req) {
+        if (!aiService) {
+            return createErrorResponse("AI service not configured. Please set Azure OpenAI environment variables.", 503);
+        }
+
+        try {
+            auto json_body = crow::json::load(req.body);
+            if (!json_body) {
+                return createErrorResponse("Invalid JSON in request body", 400);
+            }
+
+            if (!json_body.has("prompt")) {
+                return createErrorResponse("Missing 'prompt' field in request body", 400);
+            }
+
+            std::string prompt = json_body["prompt"].s();
+            int count = 1;
+
+            if (json_body.has("count")) {
+                count = json_body["count"].i();
+                if (count < 1 || count > 5) {
+                    return createErrorResponse("Count must be between 1 and 5", 400);
+                }
+            }
+
+            if (count == 1) {
+                // Generate single recipe
+                auto result = aiService->generateRecipe(prompt);
+
+                if (!result.success) {
+                    return createErrorResponse(result.errorMessage, 500);
+                }
+
+                crow::json::wvalue data;
+                data["generatedRecipe"] = result.generatedContent;
+                data["tokenCount"] = result.tokenCount;
+                return createSuccessResponse(data);
+            } else {
+                // Generate multiple recipe suggestions
+                auto results = aiService->generateRecipeSuggestions(prompt, count);
+
+                crow::json::wvalue data;
+                crow::json::wvalue suggestions = crow::json::wvalue::list();
+
+                for (size_t i = 0; i < results.size(); ++i) {
+                    crow::json::wvalue suggestion;
+                    suggestion["success"] = results[i].success;
+                    if (results[i].success) {
+                        suggestion["content"] = results[i].generatedContent;
+                        suggestion["tokenCount"] = results[i].tokenCount;
+                    } else {
+                        suggestion["error"] = results[i].errorMessage;
+                    }
+                    suggestions[i] = std::move(suggestion);
+                }
+
+                data["suggestions"] = std::move(suggestions);
+                return createSuccessResponse(data);
+            }
+
+        } catch (const std::exception& e) {
+            return createErrorResponse("Unexpected error: " + std::string(e.what()), 500);
+        }
+    });
+
+    // GET /api/ai/status - Check AI service status
+    CROW_ROUTE(app, "/api/ai/status")
+    .methods("GET"_method)
+    ([&aiService, &createSuccessResponse, &createErrorResponse]() {
+        crow::json::wvalue data;
+        data["aiServiceConfigured"] = (aiService != nullptr);
+
+        if (aiService) {
+            data["aiServiceConnected"] = aiService->isConnected();
+        } else {
+            data["aiServiceConnected"] = false;
+            data["configurationHelp"] = "Set AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_KEY, and AZURE_OPENAI_DEPLOYMENT environment variables";
+        }
+
+        return createSuccessResponse(data);
+    });
+
     // Serve static files (for frontend)
     CROW_ROUTE(app, "/")
     ([]() {
@@ -332,23 +503,332 @@ int main() {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RecipeForADisaster - Web Interface</title>
+    <title>RecipeForADisaster - AI-Powered Recipe Manager</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }
-        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        h1 { color: #333; text-align: center; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .ai-section {
+            background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
+            color: #333;
+        }
+        .ai-form {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .ai-input {
+            flex: 1;
+            min-width: 200px;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        .ai-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .ai-button {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .ai-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        .ai-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .result {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-top: 15px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .error {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+            color: #721c24;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .api-section {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+        }
+        .api-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+        }
+        .api-item {
+            background: rgba(255,255,255,0.9);
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-online { background: #28a745; }
+        .status-offline { background: #dc3545; }
+        .footer {
+            text-align: center;
+            color: white;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255,255,255,0.2);
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🍳 RecipeForADisaster</h1>
-        <p>Web interface coming soon! Use the API endpoints:</p>
-        <ul>
-            <li>GET /api/recipes - Get all recipes</li>
-            <li>POST /api/recipes - Add a recipe</li>
-            <li>GET /api/health - Health check</li>
-        </ul>
+        <div class="header">
+            <h1>🍳 RecipeForADisaster</h1>
+            <p>AI-Powered Recipe Manager</p>
+        </div>
+
+        <div class="card ai-section">
+            <h2>🤖 AI Recipe Generation</h2>
+            <div class="ai-form">
+                <input type="text" id="aiPrompt" class="ai-input" placeholder="Describe your recipe idea... (e.g., 'Italian pasta with vegetables')" maxlength="500">
+                <select id="suggestionCount" class="ai-input" style="max-width: 150px;">
+                    <option value="1">1 Recipe</option>
+                    <option value="2">2 Recipes</option>
+                    <option value="3" selected>3 Recipes</option>
+                    <option value="4">4 Recipes</option>
+                    <option value="5">5 Recipes</option>
+                </select>
+                <button id="generateBtn" class="ai-button" onclick="generateRecipe()">Generate Recipe</button>
+            </div>
+            <div id="aiResult" style="display: none;"></div>
+        </div>
+
+        <div class="card api-section">
+            <h2>📡 API Endpoints</h2>
+            <div class="api-list">
+                <div class="api-item">
+                    <strong>GET /api/recipes</strong><br>
+                    Get all recipes with pagination
+                </div>
+                <div class="api-item">
+                    <strong>POST /api/recipes/generate</strong><br>
+                    Generate recipes using AI
+                </div>
+                <div class="api-item">
+                    <strong>GET /api/recipes/search?q=query</strong><br>
+                    Search recipes by title
+                </div>
+                <div class="api-item">
+                    <strong>POST /api/recipes</strong><br>
+                    Add new recipe manually
+                </div>
+                <div class="api-item">
+                    <strong>GET /api/ai/status</strong><br>
+                    Check AI service status
+                </div>
+                <div class="api-item">
+                    <strong>GET /api/health</strong><br>
+                    System health check
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>🔍 Search Existing Recipes</h2>
+            <div class="ai-form">
+                <input type="text" id="searchQuery" class="ai-input" placeholder="Search recipes...">
+                <button class="ai-button" onclick="searchRecipes()">Search</button>
+            </div>
+            <div id="searchResult" style="display: none;"></div>
+        </div>
     </div>
+
+    <div class="footer">
+        <p>Made with ❤️ for learning C++, databases, and AI integration</p>
+    </div>
+
+    <script>
+        async function generateRecipe() {
+            const prompt = document.getElementById('aiPrompt').value.trim();
+            const count = document.getElementById('suggestionCount').value;
+            const resultDiv = document.getElementById('aiResult');
+            const generateBtn = document.getElementById('generateBtn');
+
+            if (!prompt) {
+                showResult('Please enter a recipe description.', true);
+                return;
+            }
+
+            generateBtn.disabled = true;
+            generateBtn.innerHTML = '<span class="loading"></span>Generating...';
+
+            try {
+                const response = await fetch('/api/recipes/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: prompt, count: parseInt(count) })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    if (count == 1) {
+                        showResult(data.data.generatedRecipe, false);
+                    } else {
+                        let result = '';
+                        data.data.suggestions.forEach((suggestion, index) => {
+                            result += `=== Recipe ${index + 1} ===\n`;
+                            if (suggestion.success) {
+                                result += suggestion.content + '\n\n';
+                            } else {
+                                result += `Error: ${suggestion.error}\n\n`;
+                            }
+                        });
+                        showResult(result, false);
+                    }
+                } else {
+                    showResult(data.error, true);
+                }
+            } catch (error) {
+                showResult('Network error: ' + error.message, true);
+            } finally {
+                generateBtn.disabled = false;
+                generateBtn.innerHTML = 'Generate Recipe';
+            }
+        }
+
+        async function searchRecipes() {
+            const query = document.getElementById('searchQuery').value.trim();
+            const resultDiv = document.getElementById('searchResult');
+
+            if (!query) {
+                showSearchResult('Please enter a search term.', true);
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/recipes/search?q=${encodeURIComponent(query)}`);
+                const data = await response.json();
+
+                if (data.success && data.data.recipes.length > 0) {
+                    let result = `Found ${data.data.recipes.length} recipe(s):\n\n`;
+                    data.data.recipes.forEach(recipe => {
+                        result += `**${recipe.title}**\n`;
+                        result += `Category: ${recipe.category} | Type: ${recipe.type}\n`;
+                        result += `Cook Time: ${recipe.cookTime} | Servings: ${recipe.servingSize}\n\n`;
+                    });
+                    showSearchResult(result, false);
+                } else {
+                    showSearchResult('No recipes found matching your search.', false);
+                }
+            } catch (error) {
+                showSearchResult('Search error: ' + error.message, true);
+            }
+        }
+
+        function showResult(content, isError) {
+            const resultDiv = document.getElementById('aiResult');
+            resultDiv.style.display = 'block';
+            resultDiv.className = isError ? 'result error' : 'result';
+            resultDiv.textContent = content;
+        }
+
+        function showSearchResult(content, isError) {
+            const resultDiv = document.getElementById('searchResult');
+            resultDiv.style.display = 'block';
+            resultDiv.className = isError ? 'result error' : 'result';
+            resultDiv.textContent = content;
+        }
+
+        // Check AI status on page load
+        window.onload = async function() {
+            try {
+                const response = await fetch('/api/ai/status');
+                const data = await response.json();
+                const indicator = document.createElement('div');
+                indicator.className = 'status-indicator ' + (data.success && data.data.aiServiceConnected ? 'status-online' : 'status-offline');
+                indicator.title = data.success && data.data.aiServiceConnected ? 'AI Service Online' : 'AI Service Offline';
+
+                const header = document.querySelector('.ai-section h2');
+                header.insertBefore(indicator, header.firstChild);
+            } catch (e) {
+                console.log('Could not check AI status');
+            }
+        };
+
+        // Allow Enter key to trigger generation
+        document.getElementById('aiPrompt').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                generateRecipe();
+            }
+        });
+
+        document.getElementById('searchQuery').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchRecipes();
+            }
+        });
+    </script>
 </body>
 </html>
 )html";
@@ -365,6 +845,8 @@ int main() {
     std::cout << "  POST /api/recipes - Add new recipe" << std::endl;
     std::cout << "  PUT  /api/recipes/title - Update recipe" << std::endl;
     std::cout << "  DELETE /api/recipes/title - Delete recipe" << std::endl;
+    std::cout << "  POST /api/recipes/generate - Generate recipe with AI" << std::endl;
+    std::cout << "  GET  /api/ai/status - Check AI service status" << std::endl;
     std::cout << "  GET  /api/health - Health check" << std::endl;
     std::cout << "Web interface: http://localhost:8080" << std::endl;
 

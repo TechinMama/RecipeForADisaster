@@ -11,6 +11,8 @@
 #include <optional>
 #include "recipe.h"
 
+class VaultService;  // Forward declaration
+
 class recipeManager {
 public:
     // Custom exception for database operations
@@ -27,7 +29,11 @@ public:
         OperationResult(bool s = true, const std::string& msg = "") : success(s), errorMessage(msg) {}
     };
 
+    // Constructor with direct URI (for backward compatibility)
     recipeManager(const std::string& uri);
+
+    // Constructor with Vault service for secure credential retrieval
+    recipeManager(VaultService* vaultService, const std::string& vaultPath = "database/mongodb");
 
     OperationResult addRecipe(const recipe& recipe);
     std::vector<recipe> viewRecipes();

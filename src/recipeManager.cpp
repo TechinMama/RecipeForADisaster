@@ -3,6 +3,7 @@
 #include <bsoncxx/builder/stream/document.hpp>
 #include <bsoncxx/json.hpp>
 #include <iostream>
+#include "vaultService.h"  // Include Vault service header
 
 recipeManager::recipeManager(const std::string& uri)
 {
@@ -17,6 +18,40 @@ recipeManager::recipeManager(const std::string& uri)
         if (!isConnected()) {
             throw DatabaseError("Failed to connect to MongoDB database");
         }
+    } catch (const mongocxx::exception& e) {
+        throw DatabaseError("MongoDB connection failed: " + std::string(e.what()));
+    } catch (const std::exception& e) {
+        throw DatabaseError("Database initialization failed: " + std::string(e.what()));
+    }
+}
+
+recipeManager::recipeManager(VaultService* vaultService, const std::string& vaultPath)
+{
+    try {
+        if (!vaultService) {
+            throw DatabaseError("Vault service is required for secure credential retrieval");
+        }
+
+        // Retrieve MongoDB URI from Vault
+        auto uriResult = vaultService->getSecret(vaultPath, "uri");
+        if (!uriResult.success) {
+            throw DatabaseError("Failed to retrieve MongoDB URI from Vault: " + uriResult.errorMessage);
+        }
+
+        std::string uri = uriResult.value;
+        if (uri.empty()) {
+            throw DatabaseError("Retrieved MongoDB URI from Vault is empty");
+        }
+
+        client = mongocxx::client{mongocxx::uri{uri}};
+        db = client["RecipeManagerDB"];
+
+        // Test connection
+        if (!isConnected()) {
+            throw DatabaseError("Failed to connect to MongoDB database");
+        }
+
+        std::cout << "Database connected successfully using Vault credentials" << std::endl;
     } catch (const mongocxx::exception& e) {
         throw DatabaseError("MongoDB connection failed: " + std::string(e.what()));
     } catch (const std::exception& e) {

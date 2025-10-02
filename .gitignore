@@ -31,14 +31,37 @@
 *.out
 *.app
 
-# Build directory (contains downloaded dependencies)
+# Build directories and artifacts
 build/
+_deps/
+*.cmake
+CMakeCache.txt
+CMakeFiles/
+Makefile
+*.log
+*.txt.user
 
 # VS Code Config
-.vscode
+.vscode/
+*.code-workspace
 
-# environment file (not in use)
+# Environment files
 .env
+.env.local
 
-# Local environment file
+# IDE files
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Documentation (local builds)
 QUICKSTART_GUIDE.md
+
+# Test outputs
+Testing/
+CTestTestfile.cmake

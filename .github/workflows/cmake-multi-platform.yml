@@ -81,7 +81,14 @@ jobs:
         rm -rf mongo-cxx-driver-r3.10.2*
         
         # Verify installation
-        ls -la /usr/local/lib/cmake/
+        echo "Checking MongoDB C++ driver installation:"
+        ls -la /usr/local/lib/cmake/ || true
+        ls -la /usr/local/include/mongocxx/ || true
+        ls -la /usr/local/include/bsoncxx/ || true
+        find /usr/local -name "*mongocxx*" -o -name "*bsoncxx*" 2>/dev/null | head -20 || true
+        echo "Include directory contents:"
+        ls -la /usr/local/include/mongocxx/v_noabi/ || true
+        ls -la /usr/local/include/bsoncxx/v_noabi/ || true
 
     - name: Install dependencies (Windows)
       if: runner.os == 'Windows'

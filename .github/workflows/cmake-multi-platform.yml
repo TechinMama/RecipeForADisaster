@@ -76,19 +76,52 @@ jobs:
           -DBSONCXX_POLY_USE_STD=ON \
           -DBSONCXX_POLY_USE_MNMLSTC=OFF \
           -DBSONCXX_POLY_USE_BOOST=OFF
-        sudo cmake --build . --target install
+        sudo cmake --build . --target install -- -j$(nproc)
         cd ../..
-        rm -rf mongo-cxx-driver-r3.10.2*
         
-        # Verify installation
-        echo "Checking MongoDB C++ driver installation:"
-        ls -la /usr/local/lib/cmake/ || true
-        ls -la /usr/local/include/mongocxx/ || true
-        ls -la /usr/local/include/bsoncxx/ || true
-        find /usr/local -name "*mongocxx*" -o -name "*bsoncxx*" 2>/dev/null | head -20 || true
-        echo "Include directory contents:"
-        ls -la /usr/local/include/mongocxx/v_noabi/ || true
-        ls -la /usr/local/include/bsoncxx/v_noabi/ || true
+        # Verify installation with detailed checks
+        echo "=== MongoDB C++ Driver Installation Verification ==="
+        echo "Checking for mongocxx/client.hpp:"
+        find /usr/local -name "client.hpp" 2>/dev/null || echo "client.hpp not found"
+        echo "Checking include directories:"
+        ls -la /usr/local/include/ | grep mongo || echo "No mongo directories found"
+        if [ -d "/usr/local/include/mongocxx" ]; then
+          echo "mongocxx directory contents:"
+          find /usr/local/include/mongocxx -name "*.hpp" | head -10
+        fi
+        echo "Checking library files:"
+        ls -la /usr/local/lib/libmongocxx* 2>/dev/null || echo "No mongocxx libraries found"
+        echo "Checking cmake config files:"
+        find /usr/local/lib/cmake -name "*mongo*" 2>/dev/null || echo "No mongo cmake files found"
+        
+        # Create compatibility headers for MongoDB C++ driver
+        echo "Creating compatibility headers..."
+        mkdir -p /usr/local/include/mongocxx /usr/local/include/bsoncxx
+        echo '#ifndef MONGOCXX_CLIENT_HPP' > /usr/local/include/mongocxx/client.hpp
+        echo '#define MONGOCXX_CLIENT_HPP' >> /usr/local/include/mongocxx/client.hpp
+        echo '#include <mongocxx/v_noabi/mongocxx/client.hpp>' >> /usr/local/include/mongocxx/client.hpp
+        echo '#endif' >> /usr/local/include/mongocxx/client.hpp
+        
+        echo '#ifndef MONGOCXX_INSTANCE_HPP' > /usr/local/include/mongocxx/instance.hpp
+        echo '#define MONGOCXX_INSTANCE_HPP' >> /usr/local/include/mongocxx/instance.hpp
+        echo '#include <mongocxx/v_noabi/mongocxx/instance.hpp>' >> /usr/local/include/mongocxx/instance.hpp
+        echo '#endif' >> /usr/local/include/mongocxx/instance.hpp
+        
+        echo '#ifndef MONGOCXX_URI_HPP' > /usr/local/include/mongocxx/uri.hpp
+        echo '#define MONGOCXX_URI_HPP' >> /usr/local/include/mongocxx/uri.hpp
+        echo '#include <mongocxx/v_noabi/mongocxx/uri.hpp>' >> /usr/local/include/mongocxx/uri.hpp
+        echo '#endif' >> /usr/local/include/mongocxx/uri.hpp
+        
+        echo '#ifndef BSONCXX_DOCUMENT_HPP' > /usr/local/include/bsoncxx/document.hpp
+        echo '#define BSONCXX_DOCUMENT_HPP' >> /usr/local/include/bsoncxx/document.hpp
+        echo '#include <bsoncxx/v_noabi/bsoncxx/document.hpp>' >> /usr/local/include/bsoncxx/document.hpp
+        echo '#endif' >> /usr/local/include/bsoncxx/document.hpp
+        
+        echo "Verifying compatibility headers:"
+        ls -la /usr/local/include/mongocxx/ || echo "mongocxx headers not found"
+        ls -la /usr/local/include/bsoncxx/ || echo "bsoncxx headers not found"
+        
+        rm -rf mongo-cxx-driver-r3.10.2*
 
     - name: Install dependencies (Windows)
       if: runner.os == 'Windows'

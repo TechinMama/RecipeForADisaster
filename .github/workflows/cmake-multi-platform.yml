@@ -47,6 +47,21 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: Install dependencies (Ubuntu)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libboost-system-dev \
+          libboost-date-time-dev \
+          libcurl4-openssl-dev \
+          libssl-dev
+
+    - name: Install dependencies (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        choco install boost-msvc-14.3 -y
+
     - name: Set reusable strings
       # Turn repeated input strings (such as the build output directory) into step outputs. These step outputs can be used throughout the workflow file.
       id: strings

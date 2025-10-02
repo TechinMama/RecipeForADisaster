@@ -73,8 +73,11 @@ jobs:
           ./vcpkg.exe install boost-system boost-date-time curl openssl mongo-c-driver mongo-cxx-driver azure-core-cpp --triplet x64-windows
           ./vcpkg.exe integrate install
           echo "VCPKG_ROOT=$GITHUB_WORKSPACE/vcpkg" >> $GITHUB_ENV
+        elif [ "$RUNNER_OS" == "macOS" ]; then
+          ./vcpkg install boost-system boost-date-time curl openssl mongo-c-driver mongo-cxx-driver azure-core-cpp --triplet x64-osx
+          echo "VCPKG_ROOT=$GITHUB_WORKSPACE/vcpkg" >> $GITHUB_ENV
         else
-          ./vcpkg install boost-system boost-date-time curl openssl mongo-c-driver mongo-cxx-driver azure-core-cpp
+          ./vcpkg install boost-system boost-date-time curl openssl mongo-c-driver mongo-cxx-driver azure-core-cpp --triplet x64-linux
           echo "VCPKG_ROOT=$GITHUB_WORKSPACE/vcpkg" >> $GITHUB_ENV
         fi
 

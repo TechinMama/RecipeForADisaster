@@ -62,6 +62,9 @@ if(NOT mongocxx_FOUND OR NOT bsoncxx_FOUND)
     # Try to find headers automatically - check both v_noabi and direct paths
     find_path(MONGOCXX_INCLUDE_DIR mongocxx/client.hpp
         PATHS /usr/local/include /opt/homebrew/include /usr/include
+              $ENV{VCPKG_ROOT}/installed/x64-linux/include
+              $ENV{VCPKG_ROOT}/installed/x64-osx/include
+              $ENV{VCPKG_ROOT}/installed/arm64-osx/include
         PATH_SUFFIXES mongocxx/v_noabi mongocxx)
     
     # If not found in v_noabi, try direct mongocxx path
@@ -76,6 +79,9 @@ if(NOT mongocxx_FOUND OR NOT bsoncxx_FOUND)
     
     find_path(BSONCXX_INCLUDE_DIR bsoncxx/document.hpp
         PATHS /usr/local/include /opt/homebrew/include /usr/include
+              $ENV{VCPKG_ROOT}/installed/x64-linux/include
+              $ENV{VCPKG_ROOT}/installed/x64-osx/include
+              $ENV{VCPKG_ROOT}/installed/arm64-osx/include
         PATH_SUFFIXES bsoncxx/v_noabi bsoncxx)
     
     if(NOT BSONCXX_INCLUDE_DIR)
@@ -87,10 +93,16 @@ if(NOT mongocxx_FOUND OR NOT bsoncxx_FOUND)
     endif()
     
     find_library(MONGOCXX_LIBRARY mongocxx
-        PATHS /usr/local/lib /opt/homebrew/lib /usr/lib)
+        PATHS /usr/local/lib /opt/homebrew/lib /usr/lib
+              $ENV{VCPKG_ROOT}/installed/x64-linux/lib
+              $ENV{VCPKG_ROOT}/installed/x64-osx/lib
+              $ENV{VCPKG_ROOT}/installed/arm64-osx/lib)
     
     find_library(BSONCXX_LIBRARY bsoncxx
-        PATHS /usr/local/lib /opt/homebrew/lib /usr/lib)
+        PATHS /usr/local/lib /opt/homebrew/lib /usr/lib
+              $ENV{VCPKG_ROOT}/installed/x64-linux/lib
+              $ENV{VCPKG_ROOT}/installed/x64-osx/lib
+              $ENV{VCPKG_ROOT}/installed/arm64-osx/lib)
     
     if(MONGOCXX_INCLUDE_DIR AND BSONCXX_INCLUDE_DIR)
         message(STATUS "Found MongoDB headers: ${MONGOCXX_INCLUDE_DIR}, ${BSONCXX_INCLUDE_DIR}")

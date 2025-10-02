@@ -51,14 +51,25 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(azure-sdk-cpp)
 
 # Find MongoDB C++ driver
-# set(CMAKE_PREFIX_PATH "${CMAKE_PREFIX_PATH};/opt/homebrew/Cellar/mongo-cxx-driver/4.1.2")
-# find_package(mongocxx REQUIRED)
+# Try to find using CMake config first (CI/CD and standard installations)
+find_package(mongocxx QUIET)
+find_package(bsoncxx QUIET)
 
-# Manually set MongoDB paths
-include_directories(/opt/homebrew/Cellar/mongo-cxx-driver/4.1.2/include/mongocxx/v_noabi)
-include_directories(/opt/homebrew/Cellar/mongo-cxx-driver/4.1.2/include/bsoncxx/v_noabi)
-link_directories(/opt/homebrew/Cellar/mongo-cxx-driver/4.1.2/lib)
-find_package(bsoncxx REQUIRED)
+# If not found, use manual paths (macOS Homebrew)
+if(NOT mongocxx_FOUND OR NOT bsoncxx_FOUND)
+    message(STATUS "MongoDB C++ driver not found via find_package, using manual paths")
+    if(APPLE)
+        # macOS Homebrew paths
+        include_directories(/opt/homebrew/Cellar/mongo-cxx-driver/4.1.2/include/mongocxx/v_noabi)
+        include_directories(/opt/homebrew/Cellar/mongo-cxx-driver/4.1.2/include/bsoncxx/v_noabi)
+        link_directories(/opt/homebrew/Cellar/mongo-cxx-driver/4.1.2/lib)
+    elseif(UNIX)
+        # Linux standard paths
+        include_directories(/usr/local/include/mongocxx/v_noabi)
+        include_directories(/usr/local/include/bsoncxx/v_noabi)
+        link_directories(/usr/local/lib)
+    endif()
+endif()
 
 # Main application sources (exclude web_server.cpp)
 file(GLOB SOURCES "src/*.cpp")

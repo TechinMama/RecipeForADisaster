@@ -64,7 +64,9 @@ jobs:
         # Install MongoDB C++ driver
         wget https://github.com/mongodb/mongo-cxx-driver/releases/download/r3.10.1/mongo-cxx-driver-r3.10.1.tar.gz
         tar -xzf mongo-cxx-driver-r3.10.1.tar.gz
-        cd mongo-cxx-driver-r3.10.1/build
+        cd mongo-cxx-driver-r3.10.1
+        mkdir -p build
+        cd build
         cmake .. \
           -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_INSTALL_PREFIX=/usr/local \
@@ -74,6 +76,9 @@ jobs:
         sudo cmake --build . --target install
         cd ../..
         rm -rf mongo-cxx-driver-r3.10.1*
+        
+        # Verify installation
+        ls -la /usr/local/lib/cmake/
 
     - name: Install dependencies (Windows)
       if: runner.os == 'Windows'

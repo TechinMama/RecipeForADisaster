@@ -55,7 +55,25 @@ jobs:
           libboost-system-dev \
           libboost-date-time-dev \
           libcurl4-openssl-dev \
-          libssl-dev
+          libssl-dev \
+          libmongoc-1.0-0 \
+          libmongoc-dev \
+          libbson-1.0-0 \
+          libbson-dev
+        
+        # Install MongoDB C++ driver
+        wget https://github.com/mongodb/mongo-cxx-driver/releases/download/r3.10.1/mongo-cxx-driver-r3.10.1.tar.gz
+        tar -xzf mongo-cxx-driver-r3.10.1.tar.gz
+        cd mongo-cxx-driver-r3.10.1/build
+        cmake .. \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_INSTALL_PREFIX=/usr/local \
+          -DBUILD_SHARED_LIBS=ON \
+          -DBSONCXX_POLY_USE_MNMLSTC=OFF \
+          -DBSONCXX_POLY_USE_STD=ON
+        sudo cmake --build . --target install
+        cd ../..
+        rm -rf mongo-cxx-driver-r3.10.1*
 
     - name: Install dependencies (Windows)
       if: runner.os == 'Windows'

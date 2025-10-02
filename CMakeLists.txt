@@ -51,24 +51,36 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(azure-sdk-cpp)
 
 # Find MongoDB C++ driver
+# Add common installation paths to CMAKE_PREFIX_PATH
+list(APPEND CMAKE_PREFIX_PATH "/usr/local" "/opt/homebrew" "/usr")
+
 # Try to find using CMake config first (CI/CD and standard installations)
 find_package(mongocxx QUIET)
 find_package(bsoncxx QUIET)
 
-# If not found, use manual paths (macOS Homebrew)
+# If not found, use manual paths
 if(NOT mongocxx_FOUND OR NOT bsoncxx_FOUND)
     message(STATUS "MongoDB C++ driver not found via find_package, using manual paths")
     if(APPLE)
         # macOS Homebrew paths
-        include_directories(/opt/homebrew/Cellar/mongo-cxx-driver/4.1.2/include/mongocxx/v_noabi)
-        include_directories(/opt/homebrew/Cellar/mongo-cxx-driver/4.1.2/include/bsoncxx/v_noabi)
-        link_directories(/opt/homebrew/Cellar/mongo-cxx-driver/4.1.2/lib)
+        set(MONGOCXX_INCLUDE_DIR /opt/homebrew/Cellar/mongo-cxx-driver/4.1.2/include/mongocxx/v_noabi)
+        set(BSONCXX_INCLUDE_DIR /opt/homebrew/Cellar/mongo-cxx-driver/4.1.2/include/bsoncxx/v_noabi)
+        set(MONGOCXX_LIB_DIR /opt/homebrew/Cellar/mongo-cxx-driver/4.1.2/lib)
     elseif(UNIX)
         # Linux standard paths
-        include_directories(/usr/local/include/mongocxx/v_noabi)
-        include_directories(/usr/local/include/bsoncxx/v_noabi)
-        link_directories(/usr/local/lib)
+        set(MONGOCXX_INCLUDE_DIR /usr/local/include/mongocxx/v_noabi)
+        set(BSONCXX_INCLUDE_DIR /usr/local/include/bsoncxx/v_noabi)
+        set(MONGOCXX_LIB_DIR /usr/local/lib)
     endif()
+    
+    include_directories(${MONGOCXX_INCLUDE_DIR})
+    include_directories(${BSONCXX_INCLUDE_DIR})
+    link_directories(${MONGOCXX_LIB_DIR})
+    
+    message(STATUS "Using MongoDB include paths: ${MONGOCXX_INCLUDE_DIR}, ${BSONCXX_INCLUDE_DIR}")
+    message(STATUS "Using MongoDB library path: ${MONGOCXX_LIB_DIR}")
+else()
+    message(STATUS "Found MongoDB C++ driver via find_package")
 endif()
 
 # Main application sources (exclude web_server.cpp)

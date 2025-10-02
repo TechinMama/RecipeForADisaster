@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.10)
 
+# Add common installation paths to CMAKE_PREFIX_PATH before project()
+list(APPEND CMAKE_PREFIX_PATH "/usr/local" "/opt/homebrew" "/usr" "/usr/local/lib/cmake" "/usr/lib/cmake")
+
 set(CMAKE_CXX_STANDARD 17) # Set the C++ standard to C++17
 
 project(RecipeForADisaster)
@@ -46,8 +49,7 @@ FetchContent_MakeAvailable(nlohmann_json)
 # Azure SDK is now handled via vcpkg on Windows, FetchContent on other platforms
 
 # Find MongoDB C++ driver
-# Add common installation paths to CMAKE_PREFIX_PATH
-list(APPEND CMAKE_PREFIX_PATH "/usr/local" "/opt/homebrew" "/usr")
+# CMAKE_PREFIX_PATH is set at the top of the file
 
 # Try to find using CMake config first (CI/CD and standard installations)
 find_package(mongocxx QUIET)
@@ -56,29 +58,35 @@ find_package(bsoncxx QUIET)
 # If not found, use manual paths
 if(NOT mongocxx_FOUND OR NOT bsoncxx_FOUND)
     message(STATUS "MongoDB C++ driver not found via find_package, using manual paths")
-    if(APPLE)
-        # macOS Homebrew paths
-        set(MONGOCXX_INCLUDE_DIR /opt/homebrew/Cellar/mongo-cxx-driver/4.1.2/include/mongocxx/v_noabi)
-        set(BSONCXX_INCLUDE_DIR /opt/homebrew/Cellar/mongo-cxx-driver/4.1.2/include/bsoncxx/v_noabi)
-        set(MONGOCXX_LIB_DIR /opt/homebrew/Cellar/mongo-cxx-driver/4.1.2/lib)
-    elseif(WIN32)
-        # Windows vcpkg paths
-        set(MONGOCXX_INCLUDE_DIR ${CMAKE_BINARY_DIR}/../vcpkg/installed/x64-windows/include/mongocxx/v_noabi)
-        set(BSONCXX_INCLUDE_DIR ${CMAKE_BINARY_DIR}/../vcpkg/installed/x64-windows/include/bsoncxx/v_noabi)
-        set(MONGOCXX_LIB_DIR ${CMAKE_BINARY_DIR}/../vcpkg/installed/x64-windows/lib)
+    
+    # Try to find headers automatically
+    find_path(MONGOCXX_INCLUDE_DIR mongocxx/client.hpp
+        PATHS /usr/local/include /opt/homebrew/include /usr/include
+        PATH_SUFFIXES mongocxx/v_noabi mongocxx)
+    
+    find_path(BSONCXX_INCLUDE_DIR bsoncxx/document.hpp
+        PATHS /usr/local/include /opt/homebrew/include /usr/include
+        PATH_SUFFIXES bsoncxx/v_noabi bsoncxx)
+    
+    find_library(MONGOCXX_LIBRARY mongocxx
+        PATHS /usr/local/lib /opt/homebrew/lib /usr/lib)
+    
+    find_library(BSONCXX_LIBRARY bsoncxx
+        PATHS /usr/local/lib /opt/homebrew/lib /usr/lib)
+    
+    if(MONGOCXX_INCLUDE_DIR AND BSONCXX_INCLUDE_DIR)
+        message(STATUS "Found MongoDB headers: ${MONGOCXX_INCLUDE_DIR}, ${BSONCXX_INCLUDE_DIR}")
+        include_directories(${MONGOCXX_INCLUDE_DIR})
+        include_directories(${BSONCXX_INCLUDE_DIR})
+        
+        if(MONGOCXX_LIBRARY AND BSONCXX_LIBRARY)
+            message(STATUS "Found MongoDB libraries: ${MONGOCXX_LIBRARY}, ${BSONCXX_LIBRARY}")
+        else()
+            message(WARNING "MongoDB libraries not found, linking may fail")
+        endif()
     else()
-        # Linux/Docker/Ubuntu standard paths (works for all non-Apple UNIX systems)
-        set(MONGOCXX_INCLUDE_DIR /usr/local/include/mongocxx/v_noabi)
-        set(BSONCXX_INCLUDE_DIR /usr/local/include/bsoncxx/v_noabi)
-        set(MONGOCXX_LIB_DIR /usr/local/lib)
+        message(FATAL_ERROR "Could not find MongoDB C++ driver headers. Searched in: /usr/local/include, /opt/homebrew/include, /usr/include")
     endif()
-    
-    include_directories(${MONGOCXX_INCLUDE_DIR})
-    include_directories(${BSONCXX_INCLUDE_DIR})
-    link_directories(${MONGOCXX_LIB_DIR})
-    
-    message(STATUS "Using MongoDB include paths: ${MONGOCXX_INCLUDE_DIR}, ${BSONCXX_INCLUDE_DIR}")
-    message(STATUS "Using MongoDB library path: ${MONGOCXX_LIB_DIR}")
 else()
     message(STATUS "Found MongoDB C++ driver via find_package")
 endif()

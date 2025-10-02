@@ -55,6 +55,7 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Install vcpkg
+      shell: bash
       run: |
         git clone https://github.com/Microsoft/vcpkg.git
         cd vcpkg
@@ -65,12 +66,14 @@ jobs:
         fi
 
     - name: Install dependencies with vcpkg
+      shell: bash
       run: |
         cd vcpkg
         if [ "$RUNNER_OS" == "Windows" ]; then
-          .\vcpkg.exe install boost-system boost-date-time curl openssl mongo-c-driver mongo-cxx-driver azure-core-cpp --triplet x64-windows
-          .\vcpkg.exe integrate install
-          echo "VCPKG_ROOT=$env:GITHUB_WORKSPACE\vcpkg" | Out-File -FilePath $env:GITHUB_ENV -Append
+          ./bootstrap-vcpkg.bat
+          ./vcpkg.exe install boost-system boost-date-time curl openssl mongo-c-driver mongo-cxx-driver azure-core-cpp --triplet x64-windows
+          ./vcpkg.exe integrate install
+          echo "VCPKG_ROOT=$GITHUB_WORKSPACE/vcpkg" >> $GITHUB_ENV
         else
           ./vcpkg install boost-system boost-date-time curl openssl mongo-c-driver mongo-cxx-driver azure-core-cpp
           echo "VCPKG_ROOT=$GITHUB_WORKSPACE/vcpkg" >> $GITHUB_ENV

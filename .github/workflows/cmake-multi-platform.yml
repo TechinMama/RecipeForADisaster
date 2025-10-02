@@ -95,11 +95,11 @@ jobs:
       run: |
         choco install boost-msvc-14.3 -y
         
-        # Install vcpkg and wil (Windows Implementation Library) for Azure SDK
+        # Install vcpkg and required dependencies for Azure SDK and MongoDB
         git clone https://github.com/Microsoft/vcpkg.git
         cd vcpkg
         .\bootstrap-vcpkg.bat
-        .\vcpkg.exe install wil:x64-windows
+        .\vcpkg.exe install wil:x64-windows curl:x64-windows openssl:x64-windows mongo-c-driver:x64-windows mongo-cxx-driver:x64-windows
         .\vcpkg.exe integrate install
         echo "VCPKG_ROOT=$env:GITHUB_WORKSPACE\vcpkg" | Out-File -FilePath $env:GITHUB_ENV -Append
 

@@ -43,12 +43,7 @@ FetchContent_MakeAvailable(nlohmann_json)
 
 # Remove Azure OpenAI SDK dependencies for now
 # Add Azure SDK for C++ (keeping core for potential future use)
-FetchContent_Declare(
-  azure-sdk-cpp
-  GIT_REPOSITORY https://github.com/Azure/azure-sdk-for-cpp.git
-  GIT_TAG azure-core_1.10.3
-)
-FetchContent_MakeAvailable(azure-sdk-cpp)
+# Azure SDK is now handled via vcpkg on Windows, FetchContent on other platforms
 
 # Find MongoDB C++ driver
 # Add common installation paths to CMAKE_PREFIX_PATH

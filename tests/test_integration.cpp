@@ -116,7 +116,7 @@ bool testRecipeValidation() {
 // Test database operations (SQLite)
 bool testDatabaseOperations() {
     try {
-        // Use a test database file
+        // Use a test database file in the current directory (should be writable)
         std::string testDbPath = "test_recipes.db";
 
         // Clean up any existing test database (try multiple times on Windows)
@@ -231,7 +231,8 @@ bool testErrorHandling() {
 
     // Test operations on non-existent database
     try {
-        RecipeManagerSQLite manager("/tmp/non_existent_test.db");
+        std::string tempDbPath = "temp_test.db";
+        RecipeManagerSQLite manager(tempDbPath);
         // This should work - SQLite will create the database
         recipe testRecipe("Test", "Ingredients", "Instructions", "4", "30min", "Italian", "Main");
         auto result = manager.addRecipe(testRecipe);
@@ -240,7 +241,7 @@ bool testErrorHandling() {
             return false;
         }
         // Clean up
-        std::remove("/tmp/non_existent_test.db");
+        std::remove(tempDbPath.c_str());
     } catch (const std::exception& e) {
         std::cerr << "Unexpected exception with new database: " << e.what() << std::endl;
         return false;

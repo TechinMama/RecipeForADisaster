@@ -64,4 +64,4 @@ QUICKSTART_GUIDE.md
 
 # Test outputs
 Testing/
-CTestTestfile.cmake
+CTestTestfile.cmakevcpkg/

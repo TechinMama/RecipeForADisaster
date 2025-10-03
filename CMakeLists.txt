@@ -39,7 +39,7 @@ include(FetchContent)
 FetchContent_Declare(
   crow
   GIT_REPOSITORY https://github.com/CrowCpp/Crow.git
-  GIT_TAG v1.0+5
+  GIT_TAG v1.2.0
 )
 # Ensure Crow uses the same toolchain
 set(CROW_CMAKE_ARGS -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE})
@@ -126,7 +126,7 @@ else()
             endif()
         endif()
         
-        find_path(BSONCXX_INCLUDE_DIR bsoncxx/document.hpp
+        find_path(BSONCXX_INCLUDE_DIR bsoncxx/json.hpp
             PATHS /usr/local/include /opt/homebrew/include /usr/include
                   $ENV{VCPKG_ROOT}/installed/x64-linux/include
                   $ENV{VCPKG_ROOT}/installed/x64-osx/include
@@ -137,16 +137,17 @@ else()
         message(STATUS "BSONCXX_INCLUDE_DIR: ${BSONCXX_INCLUDE_DIR}")
         
         if(NOT BSONCXX_INCLUDE_DIR)
-            find_path(BSONCXX_INCLUDE_DIR bsoncxx/document.hpp
+            find_path(BSONCXX_INCLUDE_DIR bsoncxx/json.hpp
                 PATHS /usr/local/include/bsoncxx/v_noabi /opt/homebrew/include/bsoncxx/v_noabi /usr/include/bsoncxx/v_noabi
-                      $ENV{VCPKG_ROOT}/installed/x64-linux/include/bsoncxx/v_noabi)
+                      $ENV{VCPKG_ROOT}/installed/x64-linux/include/bsoncxx/v_noabi
+                      $ENV{VCPKG_ROOT}/installed/arm64-osx/include/bsoncxx/v_noabi)
             if(BSONCXX_INCLUDE_DIR)
                 get_filename_component(BSONCXX_INCLUDE_DIR "${BSONCXX_INCLUDE_DIR}" DIRECTORY)
             endif()
             message(STATUS "Fallback BSONCXX_INCLUDE_DIR: ${BSONCXX_INCLUDE_DIR}")
         endif()
         
-        find_library(MONGOCXX_LIBRARY mongocxx
+        find_library(MONGOCXX_LIBRARY mongocxx-static
             PATHS /usr/local/lib /opt/homebrew/lib /usr/lib
                   $ENV{VCPKG_ROOT}/installed/x64-linux/lib
                   $ENV{VCPKG_ROOT}/installed/x64-osx/lib
@@ -156,7 +157,7 @@ else()
         
         message(STATUS "MONGOCXX_LIBRARY: ${MONGOCXX_LIBRARY}")
         
-        find_library(BSONCXX_LIBRARY bsoncxx
+        find_library(BSONCXX_LIBRARY bsoncxx-static
             PATHS /usr/local/lib /opt/homebrew/lib /usr/lib
                   $ENV{VCPKG_ROOT}/installed/x64-linux/lib
                   $ENV{VCPKG_ROOT}/installed/x64-osx/lib
@@ -165,6 +166,38 @@ else()
                   $ENV{VCPKG_ROOT}/installed/x64-windows/bin)
         
         message(STATUS "BSONCXX_LIBRARY: ${BSONCXX_LIBRARY}")
+        
+        # Also find the underlying C libraries
+        find_library(MONGOC_LIBRARY mongoc-static-1.0
+            PATHS /usr/local/lib /opt/homebrew/lib /usr/lib
+                  $ENV{VCPKG_ROOT}/installed/x64-linux/lib
+                  $ENV{VCPKG_ROOT}/installed/x64-osx/lib
+                  $ENV{VCPKG_ROOT}/installed/arm64-osx/lib
+                  $ENV{VCPKG_ROOT}/installed/x64-windows/lib
+                  $ENV{VCPKG_ROOT}/installed/x64-windows/bin)
+        
+        message(STATUS "MONGOC_LIBRARY: ${MONGOC_LIBRARY}")
+        
+        find_library(BSONC_LIBRARY bson-static-1.0
+            PATHS /usr/local/lib /opt/homebrew/lib /usr/lib
+                  $ENV{VCPKG_ROOT}/installed/x64-linux/lib
+                  $ENV{VCPKG_ROOT}/installed/x64-osx/lib
+                  $ENV{VCPKG_ROOT}/installed/arm64-osx/lib
+                  $ENV{VCPKG_ROOT}/installed/x64-windows/lib
+                  $ENV{VCPKG_ROOT}/installed/x64-windows/bin)
+        
+        message(STATUS "BSONC_LIBRARY: ${BSONC_LIBRARY}")
+        
+        # Find utf8proc library
+        find_library(UTF8PROC_LIBRARY utf8proc
+            PATHS /usr/local/lib /opt/homebrew/lib /usr/lib
+                  $ENV{VCPKG_ROOT}/installed/x64-linux/lib
+                  $ENV{VCPKG_ROOT}/installed/x64-osx/lib
+                  $ENV{VCPKG_ROOT}/installed/arm64-osx/lib
+                  $ENV{VCPKG_ROOT}/installed/x64-windows/lib
+                  $ENV{VCPKG_ROOT}/installed/x64-windows/bin)
+        
+        message(STATUS "UTF8PROC_LIBRARY: ${UTF8PROC_LIBRARY}")
         
         # Try alternative library names
         if(NOT MONGOCXX_LIBRARY)
@@ -181,25 +214,31 @@ else()
         
         if(MONGOCXX_INCLUDE_DIR AND BSONCXX_INCLUDE_DIR)
             message(STATUS "Found MongoDB headers: ${MONGOCXX_INCLUDE_DIR}, ${BSONCXX_INCLUDE_DIR}")
-            # For v_noabi includes, we need the base include directory (two levels up from v_noabi)
+            # For v_noabi includes, we need the base include directory and the v_noabi directory
             get_filename_component(MONGOCXX_TEMP_DIR "${MONGOCXX_INCLUDE_DIR}" DIRECTORY)  # remove v_noabi
             get_filename_component(MONGOCXX_BASE_DIR "${MONGOCXX_TEMP_DIR}" DIRECTORY)     # remove mongocxx
             get_filename_component(BSONCXX_TEMP_DIR "${BSONCXX_INCLUDE_DIR}" DIRECTORY)   # remove v_noabi  
             get_filename_component(BSONCXX_BASE_DIR "${BSONCXX_TEMP_DIR}" DIRECTORY)      # remove bsoncxx
             include_directories(${MONGOCXX_BASE_DIR})
             include_directories(${BSONCXX_BASE_DIR})
+            # Also include the v_noabi directories for internal includes
+            include_directories(${MONGOCXX_INCLUDE_DIR})
+            include_directories(${BSONCXX_INCLUDE_DIR})
             
-            if(MONGOCXX_LIBRARY AND BSONCXX_LIBRARY)
-                message(STATUS "Found MongoDB libraries: ${MONGOCXX_LIBRARY}, ${BSONCXX_LIBRARY}")
-                set(MONGODB_LIBRARIES ${MONGOCXX_LIBRARY} ${BSONCXX_LIBRARY})
+            if(MONGOCXX_LIBRARY AND BSONCXX_LIBRARY AND MONGOC_LIBRARY AND BSONC_LIBRARY AND UTF8PROC_LIBRARY)
+                message(STATUS "Found MongoDB libraries: ${MONGOCXX_LIBRARY}, ${BSONCXX_LIBRARY}, ${MONGOC_LIBRARY}, ${BSONC_LIBRARY}, ${UTF8PROC_LIBRARY}")
+                set(MONGODB_LIBRARIES ${MONGOCXX_LIBRARY} ${BSONCXX_LIBRARY} ${MONGOC_LIBRARY} ${BSONC_LIBRARY} ${UTF8PROC_LIBRARY})
+                # Add system frameworks for macOS
+                if(APPLE)
+                    list(APPEND MONGODB_LIBRARIES "-framework Security" "-framework CoreFoundation" "-lresolv")
+                endif()
             else()
-                message(FATAL_ERROR "MongoDB libraries not found")
+                message(FATAL_ERROR "MongoDB libraries not found. MONGOCXX_LIBRARY: ${MONGOCXX_LIBRARY}, BSONCXX_LIBRARY: ${BSONCXX_LIBRARY}, MONGOC_LIBRARY: ${MONGOC_LIBRARY}, BSONC_LIBRARY: ${BSONC_LIBRARY}, UTF8PROC_LIBRARY: ${UTF8PROC_LIBRARY}")
             endif()
         else()
             message(FATAL_ERROR "Could not find MongoDB C++ driver headers. MONGOCXX_INCLUDE_DIR: ${MONGOCXX_INCLUDE_DIR}, BSONCXX_INCLUDE_DIR: ${BSONCXX_INCLUDE_DIR}")
         endif()
     endif()  # End of manual finding else block
-    endif()
 endif()
 
 # Main application sources (exclude web_server.cpp)

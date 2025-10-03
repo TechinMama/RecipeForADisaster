@@ -34,6 +34,19 @@ services:
     networks:
       - recipeforadisaster_network
 
+  app:
+    build: .
+    container_name: recipeforadisaster_app
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      MONGODB_URI: mongodb://admin:password@mongodb:27017/RecipeManagerDB?authSource=admin
+    depends_on:
+      - mongodb
+    networks:
+      - recipeforadisaster_network
+
 volumes:
   mongodb_data:
 

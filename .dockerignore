@@ -1,0 +1,34 @@
+# Build artifacts
+build/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+compile_commands.json
+
+# vcpkg (will be installed in container)
+vcpkg/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs and temporary files
+*.log
+*.tmp
+*.swp
+
+# Test artifacts
+test_results/
+*.exe
+*.pdb
+
+# Documentation build
+docs/_build/

@@ -69,6 +69,37 @@ sudo apt-get install libboost-system-dev libboost-date-time-dev libcurl4-openssl
 **Windows:**
 Use vcpkg as shown above, or install Visual Studio with C++ build tools.
 
+### Docker Compose (Full Stack)
+```bash
+# Start all services (MongoDB + App + Mongo Express)
+docker-compose up -d
+
+# View logs
+docker-compose logs -f app
+
+# Stop services
+docker-compose down
+```
+
+### Docker Container Deployment (Recommended)
+```bash
+# Build the container image
+docker build -t recipeforadisaster .
+
+# Run with local MongoDB
+docker run -d --name mongodb -p 27017:27017 mongo:latest
+docker run -d --name recipeforadisaster \
+  -p 8080:8080 \
+  -e MONGODB_URI="mongodb://host.docker.internal:27017" \
+  recipeforadisaster
+
+# Or run with MongoDB Atlas
+docker run -d --name recipeforadisaster \
+  -p 8080:8080 \
+  -e MONGODB_URI="mongodb+srv://username:password@cluster.mongodb.net/RecipeManagerDB" \
+  recipeforadisaster
+```
+
 ### Access
 - **Web Interface**: http://localhost:8080
 - **API Documentation**: http://localhost:8080/api

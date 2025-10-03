@@ -117,7 +117,6 @@ target_include_directories(ai_service_tests PRIVATE include)
 target_include_directories(ai_service_tests PRIVATE ${CMAKE_BINARY_DIR}/_deps/nlohmann_json-src/include)
 target_include_directories(vault_tests PRIVATE include)
 target_include_directories(vault_tests PRIVATE ${CMAKE_BINARY_DIR}/_deps/nlohmann_json-src/include)
-target_include_directories(web_server PRIVATE include)
 target_include_directories(RecipeForADisaster PRIVATE include)
 target_include_directories(RecipeForADisaster PRIVATE ${CMAKE_BINARY_DIR}/_deps/nlohmann_json-src/include)
 

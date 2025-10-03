@@ -16,28 +16,13 @@ int main() {
 
         // Example recipe usage with error handling
         try {
-            Recipe newRecipe("Pasta Carbonara", "Classic Italian pasta dish", "Italian", "Main Course",
-                           15, 20, 4);
-
-            // Add ingredients
-            std::vector<std::string> ingredients = {
-                "400g spaghetti",
-                "200g pancetta",
-                "2 large eggs",
-                "100g grated Pecorino Romano",
-                "Black pepper"
-            };
-            newRecipe.setIngredients(ingredients);
-
-            // Add instructions
-            std::vector<std::string> instructions = {
-                "Cook spaghetti in salted boiling water",
-                "Fry pancetta until crispy",
-                "Whisk eggs with cheese and pepper",
-                "Combine hot pasta with pancetta",
-                "Add egg mixture off heat, tossing quickly"
-            };
-            newRecipe.setInstructions(instructions);
+            recipe newRecipe("Pasta Carbonara",
+                           "400g spaghetti, 200g pancetta, 2 large eggs, 100g grated Pecorino Romano, Black pepper",
+                           "Cook spaghetti in salted boiling water. Fry pancetta until crispy. Whisk eggs with cheese and pepper. Combine hot pasta with pancetta. Add egg mixture off heat, tossing quickly",
+                           "4 servings",
+                           "20 minutes",
+                           "Italian",
+                           "Main Course");
 
             if (manager.addRecipe(newRecipe)) {
                 std::cout << "Recipe added successfully!" << std::endl;
@@ -55,12 +40,12 @@ int main() {
 
             for (const auto& recipe : recipes) {
                 std::cout << "Title: " << recipe.getTitle() << "\n"
-                          << "Description: " << recipe.getDescription() << "\n"
+                          << "Ingredients: " << recipe.getIngredients() << "\n"
+                          << "Instructions: " << recipe.getInstructions() << "\n"
+                          << "Serving Size: " << recipe.getServingSize() << "\n"
+                          << "Cook Time: " << recipe.getCookTime() << "\n"
                           << "Category: " << recipe.getCategory() << "\n"
-                          << "Type: " << recipe.getType() << "\n"
-                          << "Prep Time: " << recipe.getPrepTime() << " minutes\n"
-                          << "Cook Time: " << recipe.getCookTime() << " minutes\n"
-                          << "Servings: " << recipe.getServings() << "\n\n";
+                          << "Type: " << recipe.getType() << "\n\n";
             }
         } catch (const std::exception& e) {
             std::cout << "Failed to retrieve recipes: " << e.what() << std::endl;

@@ -1,6 +1,6 @@
 #include <crow.h>
 #include <crow/middlewares/cors.h>
-#include "recipeManager.h"
+#include "recipeManagerSQLite.h"
 #include "aiService.h"
 #include "vaultService.h"
 #include <iostream>
@@ -48,33 +48,18 @@ int main() {
         std::cout << "Set VAULT_ADDR and VAULT_TOKEN to enable Vault-based credential management." << std::endl;
     }
 
-    // Initialize recipe manager
-    std::unique_ptr<recipeManager> managerPtr;
+        // Initialize recipe manager
+    std::unique_ptr<RecipeManagerSQLite> managerPtr;
 
-    if (vaultService) {
-        // Use Vault for secure credential retrieval
-        try {
-            managerPtr = std::make_unique<recipeManager>(vaultService.get(), "database/mongodb");
-        } catch (const recipeManager::DatabaseError& e) {
-            std::cerr << "Failed to initialize database with Vault credentials: " << e.what() << std::endl;
-            return 1;
-        }
-    } else {
-        // Fallback to environment variables
-        const char* mongoUri = std::getenv("MONGODB_URI");
-        if (!mongoUri) {
-            mongoUri = "mongodb://localhost:27017";
-        }
-
-        try {
-            managerPtr = std::make_unique<recipeManager>(mongoUri);
-        } catch (const recipeManager::DatabaseError& e) {
-            std::cerr << "Failed to connect to MongoDB. Please check your connection string." << std::endl;
-            return 1;
-        }
+    // Use SQLite database
+    try {
+        managerPtr = std::make_unique<RecipeManagerSQLite>("recipes.db");
+    } catch (const std::exception& e) {
+        std::cerr << "Failed to initialize SQLite database: " << e.what() << std::endl;
+        return 1;
     }
 
-    recipeManager& manager = *managerPtr;
+    RecipeManagerSQLite& manager = *managerPtr;
 
     // Check database connection
     if (!manager.isConnected()) {

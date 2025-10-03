@@ -27,7 +27,7 @@ void RecipeManagerSQLite::initializeDatabase() {
     const char* createTableSQL =
         "CREATE TABLE IF NOT EXISTS recipes ("
         "id TEXT PRIMARY KEY,"
-        "data TEXT NOT NULL,"
+        "data BLOB NOT NULL,"
         "created_at DATETIME DEFAULT CURRENT_TIMESTAMP,"
         "updated_at DATETIME DEFAULT CURRENT_TIMESTAMP"
         ");";
@@ -53,69 +53,46 @@ std::string RecipeManagerSQLite::generateId() {
     return ss.str();
 }
 
-std::string RecipeManagerSQLite::recipeToJson(const Recipe& recipe) {
+std::string RecipeManagerSQLite::recipeToJson(const recipe& recipe) {
     nlohmann::json j;
     j["id"] = recipe.getId();
     j["title"] = recipe.getTitle();
-    j["description"] = recipe.getDescription();
+    j["ingredients"] = recipe.getIngredients();
+    j["instructions"] = recipe.getInstructions();
+    j["servingSize"] = recipe.getServingSize();
+    j["cookTime"] = recipe.getCookTime();
     j["category"] = recipe.getCategory();
     j["type"] = recipe.getType();
-    j["prepTime"] = recipe.getPrepTime();
-    j["cookTime"] = recipe.getCookTime();
-    j["servings"] = recipe.getServings();
-
-    // Convert ingredients vector to JSON array
-    nlohmann::json ingredients = nlohmann::json::array();
-    for (const auto& ingredient : recipe.getIngredients()) {
-        ingredients.push_back(ingredient);
-    }
-    j["ingredients"] = ingredients;
-
-    // Convert instructions vector to JSON array
-    nlohmann::json instructions = nlohmann::json::array();
-    for (const auto& instruction : recipe.getInstructions()) {
-        instructions.push_back(instruction);
-    }
-    j["instructions"] = instructions;
 
     return j.dump();
 }
 
-Recipe RecipeManagerSQLite::jsonToRecipe(const std::string& json) {
+recipe RecipeManagerSQLite::jsonToRecipe(const std::string& json) {
     nlohmann::json j = nlohmann::json::parse(json);
 
-    Recipe recipe(
+    recipe recipe(
         j["title"].get<std::string>(),
-        j["description"].get<std::string>(),
+        j["ingredients"].get<std::string>(),
+        j["instructions"].get<std::string>(),
+        j["servingSize"].get<std::string>(),
+        j["cookTime"].get<std::string>(),
         j["category"].get<std::string>(),
         j["type"].get<std::string>(),
-        j["prepTime"].get<int>(),
-        j["cookTime"].get<int>(),
-        j["servings"].get<int>()
+        j["id"].get<std::string>()
     );
-
-    recipe.setId(j["id"].get<std::string>());
-
-    // Load ingredients
-    std::vector<std::string> ingredients;
-    for (const auto& ingredient : j["ingredients"]) {
-        ingredients.push_back(ingredient.get<std::string>());
-    }
-    recipe.setIngredients(ingredients);
-
-    // Load instructions
-    std::vector<std::string> instructions;
-    for (const auto& instruction : j["instructions"]) {
-        instructions.push_back(instruction.get<std::string>());
-    }
-    recipe.setInstructions(instructions);
 
     return recipe;
 }
 
-bool RecipeManagerSQLite::addRecipe(const Recipe& recipe) {
-    std::string id = recipe.getId().empty() ? generateId() : recipe.getId();
-    std::string jsonData = recipeToJson(recipe);
+bool RecipeManagerSQLite::addRecipe(const recipe& recipeParam) {
+    std::string id = recipeParam.getId().empty() ? generateId() : recipeParam.getId();
+    
+    // Create a copy of the recipe with the correct id for JSON serialization
+    recipe recipeWithId(recipeParam.getTitle(), recipeParam.getIngredients(), recipeParam.getInstructions(),
+                       recipeParam.getServingSize(), recipeParam.getCookTime(), recipeParam.getCategory(), 
+                       recipeParam.getType(), id);
+    
+    std::string jsonData = recipeToJson(recipeWithId);
 
     const char* insertSQL = "INSERT INTO recipes (id, data) VALUES (?, ?);";
     sqlite3_stmt* stmt = nullptr;
@@ -135,7 +112,7 @@ bool RecipeManagerSQLite::addRecipe(const Recipe& recipe) {
     return rc == SQLITE_DONE;
 }
 
-bool RecipeManagerSQLite::updateRecipe(const std::string& id, const Recipe& recipe) {
+bool RecipeManagerSQLite::updateRecipe(const std::string& id, const recipe& recipe) {
     std::string jsonData = recipeToJson(recipe);
 
     const char* updateSQL = "UPDATE recipes SET data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?;";
@@ -147,7 +124,7 @@ bool RecipeManagerSQLite::updateRecipe(const std::string& id, const Recipe& reci
         return false;
     }
 
-    sqlite3_bind_text(stmt, 1, jsonData.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_blob(stmt, 1, jsonData.c_str(), jsonData.size(), SQLITE_TRANSIENT);
     sqlite3_bind_text(stmt, 2, id.c_str(), -1, SQLITE_TRANSIENT);
 
     rc = sqlite3_step(stmt);
@@ -174,7 +151,7 @@ bool RecipeManagerSQLite::deleteRecipe(const std::string& id) {
     return rc == SQLITE_DONE;
 }
 
-std::unique_ptr<Recipe> RecipeManagerSQLite::getRecipe(const std::string& id) {
+std::unique_ptr<recipe> RecipeManagerSQLite::getRecipe(const std::string& id) {
     const char* selectSQL = "SELECT data FROM recipes WHERE id = ?;";
     sqlite3_stmt* stmt = nullptr;
 
@@ -187,18 +164,19 @@ std::unique_ptr<Recipe> RecipeManagerSQLite::getRecipe(const std::string& id) {
     sqlite3_bind_text(stmt, 1, id.c_str(), -1, SQLITE_TRANSIENT);
 
     if (sqlite3_step(stmt) == SQLITE_ROW) {
-        const char* jsonData = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
-        Recipe recipe = jsonToRecipe(jsonData);
+        const void* blobData = sqlite3_column_blob(stmt, 0);
+        int blobSize = sqlite3_column_bytes(stmt, 0);
+        std::string jsonData(static_cast<const char*>(blobData), blobSize);
         sqlite3_finalize(stmt);
-        return std::make_unique<Recipe>(recipe);
+        return std::unique_ptr<recipe>(new recipe(jsonToRecipe(jsonData)));
     }
 
     sqlite3_finalize(stmt);
     return nullptr;
 }
 
-std::vector<Recipe> RecipeManagerSQLite::getAllRecipes() {
-    std::vector<Recipe> recipes;
+std::vector<recipe> RecipeManagerSQLite::getAllRecipes() {
+    std::vector<recipe> recipes;
     const char* selectSQL = "SELECT data FROM recipes ORDER BY created_at DESC;";
     sqlite3_stmt* stmt = nullptr;
 
@@ -217,8 +195,8 @@ std::vector<Recipe> RecipeManagerSQLite::getAllRecipes() {
     return recipes;
 }
 
-std::vector<Recipe> RecipeManagerSQLite::searchByTitle(const std::string& title) {
-    std::vector<Recipe> recipes;
+std::vector<recipe> RecipeManagerSQLite::searchByTitle(const std::string& title) {
+    std::vector<recipe> recipes;
     const char* searchSQL = "SELECT data FROM recipes WHERE data LIKE ?;";
     sqlite3_stmt* stmt = nullptr;
 
@@ -245,12 +223,12 @@ std::vector<Recipe> RecipeManagerSQLite::searchByTitle(const std::string& title)
     return recipes;
 }
 
-std::vector<Recipe> RecipeManagerSQLite::searchByCategory(const std::string& category) {
+std::vector<recipe> RecipeManagerSQLite::searchByCategory(const std::string& category) {
     // Similar implementation to searchByTitle
     return searchByTitle(category); // Simplified - could be more sophisticated
 }
 
-std::vector<Recipe> RecipeManagerSQLite::searchByType(const std::string& type) {
+std::vector<recipe> RecipeManagerSQLite::searchByType(const std::string& type) {
     // Similar implementation to searchByTitle
     return searchByTitle(type); // Simplified - could be more sophisticated
 }

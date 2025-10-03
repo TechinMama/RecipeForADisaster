@@ -34,16 +34,18 @@ include_directories(include src) # Add the 'include' and 'src' directories to th
 # Enable testing
 enable_testing()
 
-# Add Crow web framework
+# Add web framework dependencies
 include(FetchContent)
-FetchContent_Declare(
-  crow
-  GIT_REPOSITORY https://github.com/CrowCpp/Crow.git
-  GIT_TAG v1.2.0
-)
-# Ensure Crow uses the same toolchain
-set(CROW_CMAKE_ARGS -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE})
-FetchContent_MakeAvailable(crow)
+
+# Add Crow web framework (commented out since not used)
+# FetchContent_Declare(
+#   crow
+#   GIT_REPOSITORY https://github.com/CrowCpp/Crow.git
+#   GIT_TAG v1.2.0
+# )
+# # Ensure Crow uses the same toolchain
+# set(CROW_CMAKE_ARGS -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE})
+# FetchContent_MakeAvailable(crow)
 
 # Add Azure SDK for C++
 FetchContent_Declare(
@@ -93,20 +95,18 @@ endif()
 file(GLOB SOURCES "src/*.cpp")
 list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp")  # Remove MongoDB main
 list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/recipeManager.cpp")  # Remove MongoDB manager
-list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/web_server.cpp")  # Remove web server for now
 
 # Create main executable (SQLite version)
 add_executable(RecipeForADisaster src/main_sqlite.cpp src/recipeManagerSQLite.cpp src/recipe.cpp src/aiService.cpp src/vaultService.cpp src/common_utils.cpp)
 
 # Create test executables
-add_executable(integration_tests tests/test_integration.cpp src/recipe.cpp src/recipeManager.cpp src/vaultService.cpp src/common_utils.cpp)
-add_executable(ai_service_tests tests/test_ai_service.cpp src/recipe.cpp src/recipeManager.cpp src/aiService.cpp src/vaultService.cpp src/common_utils.cpp)
+add_executable(integration_tests tests/test_integration.cpp src/recipe.cpp src/recipeManagerSQLite.cpp src/vaultService.cpp src/common_utils.cpp)
+add_executable(ai_service_tests tests/test_ai_service.cpp src/recipe.cpp src/recipeManagerSQLite.cpp src/aiService.cpp src/vaultService.cpp src/common_utils.cpp)
 add_executable(vault_tests tests/test_vault.cpp src/vaultService.cpp src/common_utils.cpp)
 
 # Link libraries for test executables
 # Link libraries
 target_link_libraries(RecipeForADisaster ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json)
-target_link_libraries(web_server Crow::Crow ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json)
 target_link_libraries(integration_tests ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json)
 target_link_libraries(ai_service_tests ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json)
 target_link_libraries(vault_tests CURL::libcurl nlohmann_json::nlohmann_json)
@@ -117,7 +117,6 @@ target_include_directories(ai_service_tests PRIVATE include)
 target_include_directories(ai_service_tests PRIVATE ${CMAKE_BINARY_DIR}/_deps/nlohmann_json-src/include)
 target_include_directories(vault_tests PRIVATE include)
 target_include_directories(vault_tests PRIVATE ${CMAKE_BINARY_DIR}/_deps/nlohmann_json-src/include)
-target_include_directories(web_server PRIVATE include)
 target_include_directories(RecipeForADisaster PRIVATE include)
 target_include_directories(RecipeForADisaster PRIVATE ${CMAKE_BINARY_DIR}/_deps/nlohmann_json-src/include)
 

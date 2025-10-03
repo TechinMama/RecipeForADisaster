@@ -72,7 +72,7 @@ FetchContent_MakeAvailable(nlohmann_json)
 # Add Azure SDK for C++ (keeping core for potential future use)
 # Azure SDK is now handled via vcpkg on Windows, FetchContent on other platforms
 
-# Find MongoDB C++ driver
+# Find SQLite3 (much simpler than MongoDB!)
 # CMAKE_PREFIX_PATH is set at the top of the file
 
 message(STATUS "VCPKG_ROOT: $ENV{VCPKG_ROOT}")
@@ -113,17 +113,13 @@ target_link_libraries(vault_tests CURL::libcurl nlohmann_json::nlohmann_json)
 
 # Test executable needs the same include directories
 target_include_directories(integration_tests PRIVATE include)
-target_include_directories(integration_tests PRIVATE /opt/homebrew/Cellar/mongo-cxx-driver/4.1.2/include)
 target_include_directories(ai_service_tests PRIVATE include)
 target_include_directories(ai_service_tests PRIVATE ${CMAKE_BINARY_DIR}/_deps/nlohmann_json-src/include)
-target_include_directories(ai_service_tests PRIVATE /opt/homebrew/Cellar/mongo-cxx-driver/4.1.2/include)
 target_include_directories(vault_tests PRIVATE include)
 target_include_directories(vault_tests PRIVATE ${CMAKE_BINARY_DIR}/_deps/nlohmann_json-src/include)
 target_include_directories(web_server PRIVATE include)
-target_include_directories(web_server PRIVATE /opt/homebrew/Cellar/mongo-cxx-driver/4.1.2/include)
 target_include_directories(RecipeForADisaster PRIVATE include)
 target_include_directories(RecipeForADisaster PRIVATE ${CMAKE_BINARY_DIR}/_deps/nlohmann_json-src/include)
-target_include_directories(RecipeForADisaster PRIVATE /opt/homebrew/Cellar/mongo-cxx-driver/4.1.2/include)
 
 # Add tests
 add_test(NAME IntegrationTests COMMAND integration_tests)

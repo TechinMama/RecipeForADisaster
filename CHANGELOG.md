@@ -9,45 +9,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🚀 Major Updates
 
-**RecipeForADisaster v1.1.0** brings significant improvements to build reliability, dependency management, and deployment capabilities.
+**RecipeForADisaster v1.1.0** brings significant improvements to build reliability, dependency management, and deployment capabilities by switching from MongoDB to SQLite.
 
 ### ✨ Added
 
+#### Database Migration
+- **SQLite Integration**: Replaced MongoDB with SQLite for simpler, file-based database storage
+- **RecipeManagerSQLite**: Complete SQLite-based recipe manager with JSON storage
+- **Embedded Database**: No external database server required - database is stored in `recipes.db` file
+- **Simplified Deployment**: Single binary deployment without database dependencies
+
 #### Build System & Dependencies
 - **Standalone ASIO Support**: Updated Crow framework to v1.2.0 with standalone ASIO compatibility
-- **Enhanced Static Linking**: Complete MongoDB static linking with all transitive dependencies
-- **Improved Dependency Management**: Added nlohmann/json and zlib to build dependencies
+- **SQLite Dependency**: Added sqlite3 to build dependencies
 - **Cross-Platform Compatibility**: Verified builds on Windows, macOS, and Linux
 
 #### Infrastructure Improvements
-- **Docker Integration**: Updated container build with new vcpkg dependencies
+- **Docker Integration**: Updated container build with SQLite instead of MongoDB
 - **CI/CD Pipeline**: Enhanced GitHub Actions workflow for multi-platform builds
 - **Repository Management**: Added vcpkg/ directory to .gitignore
 
 ### 🔧 Changed
 
 #### Technical Updates
+- **Database Backend**: Migrated from MongoDB to SQLite for simplified deployment
 - **Crow Framework**: Upgraded from v1.0+5 to v1.2.0 (standalone ASIO)
-- **MongoDB Integration**: Improved static linking with proper header detection
-- **Build Configuration**: Enhanced CMake configuration for better dependency resolution
+- **Build Configuration**: Enhanced CMake configuration for SQLite integration
 - **ASIO Dependencies**: Replaced Boost.ASIO with standalone ASIO library
 
 ### 🐛 Fixed
 
 #### Build & Linking Issues
-- **MongoDB Static Linking**: Resolved undefined symbol errors in production builds
-- **BSONCXX Header Detection**: Fixed header path detection from `document.hpp` to `json.hpp`
+- **Database Integration**: Resolved complex MongoDB dependency issues by switching to SQLite
+- **Simplified Build**: Eliminated MongoDB header detection and linking problems
 - **ASIO Library Detection**: Corrected CMake configuration for standalone ASIO
-- **Include Path Configuration**: Added proper v_noabi include directory support
+- **Cross-platform Builds**: Consistent builds across all platforms without database server dependencies
 
 ### 🔄 Migration Notes
-- **Breaking Changes**: Requires MongoDB C++ driver with v_noabi headers
-- **New Dependencies**: Applications using static linking now require additional system libraries
-- **Build System**: Updated CMake configuration may require clean rebuilds
+- **Breaking Changes**: Database format changed from MongoDB documents to SQLite tables with JSON storage
+- **New Dependencies**: Now requires SQLite3 instead of MongoDB C++ driver
+- **Build System**: Simplified CMake configuration - no more complex MongoDB linking
+- **Deployment**: Single binary deployment - no external database server required
 
 ### 📋 Dependencies Updated
+- **Database**: MongoDB → SQLite3
 - **Crow**: v1.0+5 → v1.2.0 (standalone ASIO)
 - **ASIO**: Added standalone ASIO library
+- **Removed**: mongo-c-driver, mongo-cxx-driver dependencies
 - **Build Tools**: Enhanced vcpkg and CMake configurations
 
 ---

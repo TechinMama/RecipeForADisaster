@@ -2,10 +2,10 @@
 
 [![C++](https://img.shields.io/badge/C%2B%2B-17-blue.svg)](https://isocpp.org/)
 [![CMake](https://img.shields.io/badge/CMake-3.16+-blue.svg)](https://cmake.org/)
-[![MongoDB](https://img.shields.io/badge/MongoDB-4.0+-green.svg)](https://www.mongodb.com/)
+[![SQLite](https://img.shields.io/badge/SQLite-3.x-green.svg)](https://www.sqlite.org/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-A modern C++ recipe management application with MongoDB integration, REST API, and AI-powered recipe generation using Azure OpenAI.
+A modern C++ recipe management application with SQLite integration, REST API, and AI-powered recipe generation using Azure OpenAI.
 
 ## ✨ Features
 
@@ -43,11 +43,7 @@ cd vcpkg
 cmake -S . -B build/ -DCMAKE_TOOLCHAIN_FILE=./vcpkg/scripts/buildsystems/vcpkg.cmake
 cmake --build build/
 
-# Set environment
-export MONGODB_URI="mongodb://localhost:27017"
-
-# Start web server
-./build/web_server
+# The application uses a local SQLite database file (recipes.db)
 ```
 
 ### Alternative: System Package Installation
@@ -55,13 +51,13 @@ If you prefer system packages instead of vcpkg:
 
 **macOS (with Homebrew):**
 ```bash
-brew install boost mongodb-cxx-driver cmake
+brew install boost sqlite3 cmake
 ```
 
 **Ubuntu/Debian:**
 ```bash
 sudo apt-get update
-sudo apt-get install libboost-system-dev libboost-date-time-dev libcurl4-openssl-dev libssl-dev libmongoc-1.0-0 libmongoc-dev libbson-1.0-0 libbson-dev cmake
+sudo apt-get install libboost-system-dev libboost-date-time-dev libcurl4-openssl-dev libssl-dev libsqlite3-dev cmake
 ```
 
 **Windows:**
@@ -69,14 +65,15 @@ Use vcpkg as shown above, or install Visual Studio with C++ build tools.
 
 ### Docker Compose (Full Stack)
 ```bash
-# Start all services (MongoDB + App + Mongo Express)
-docker-compose up -d
+# Build and run the application (SQLite database is embedded)
+docker build -t recipeforadisaster .
+docker run -d --name recipeforadisaster -p 8080:8080 recipeforadisaster
 
 # View logs
-docker-compose logs -f app
+docker logs -f recipeforadisaster
 
-# Stop services
-docker-compose down
+# Stop application
+docker stop recipeforadisaster
 ```
 
 ### Docker Container Deployment (Recommended)
@@ -84,17 +81,9 @@ docker-compose down
 # Build the container image
 docker build -t recipeforadisaster .
 
-# Run with local MongoDB
-docker run -d --name mongodb -p 27017:27017 mongo:latest
+# Run the application (SQLite database is embedded in container)
 docker run -d --name recipeforadisaster \
   -p 8080:8080 \
-  -e MONGODB_URI="mongodb://host.docker.internal:27017" \
-  recipeforadisaster
-
-# Or run with MongoDB Atlas
-docker run -d --name recipeforadisaster \
-  -p 8080:8080 \
-  -e MONGODB_URI="mongodb+srv://username:password@cluster.mongodb.net/RecipeManagerDB" \
   recipeforadisaster
 ```
 
@@ -130,8 +119,8 @@ For production deployments, use HashiCorp Vault to securely store and retrieve c
 3. Store credentials in Vault:
 
 ```bash
-# MongoDB credentials
-vault kv put secret/database/mongodb uri="mongodb+srv://username:password@cluster.mongodb.net/RecipeManagerDB"
+# SQLite doesn't require credentials, but you can still store other secrets
+vault kv put secret/database/config db_path="/app/data/recipes.db"
 
 # Azure OpenAI credentials
 vault kv put secret/ai/azure-openai endpoint="https://your-resource-name.openai.azure.com/" api_key="your-api-key-here" deployment_name="gpt-35-turbo"

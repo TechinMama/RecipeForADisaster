@@ -1,6 +1,9 @@
 #include <iostream>
 #include "recipeManager.h"
 
+// NOTE: This is the MongoDB version of main.cpp
+// The active version is main_sqlite.cpp which uses SQLite
+
 int main() {
     try {
         mongocxx::instance instance{};

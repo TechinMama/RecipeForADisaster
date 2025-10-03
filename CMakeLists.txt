@@ -79,9 +79,19 @@ FetchContent_MakeAvailable(nlohmann_json)
 find_package(mongocxx QUIET)
 find_package(bsoncxx QUIET)
 
-# If not found, use manual paths
-if(NOT mongocxx_FOUND OR NOT bsoncxx_FOUND)
-    message(STATUS "MongoDB C++ driver not found via find_package, using manual paths")
+# Check if imported targets are available
+if(TARGET mongocxx::mongocxx AND TARGET bsoncxx::bsoncxx)
+    message(STATUS "Found MongoDB C++ driver via imported targets")
+    set(MONGODB_LIBRARIES mongocxx::mongocxx bsoncxx::bsoncxx)
+    # Also add include directories if they are provided by the package
+    if(MONGOCXX_INCLUDE_DIRS)
+        include_directories(${MONGOCXX_INCLUDE_DIRS})
+    endif()
+    if(BSONCXX_INCLUDE_DIRS)
+        include_directories(${BSONCXX_INCLUDE_DIRS})
+    endif()
+else()
+    message(STATUS "MongoDB imported targets not found, using manual paths")
     
     # Try to find headers automatically - check both v_noabi and direct paths
     find_path(MONGOCXX_INCLUDE_DIR mongocxx/client.hpp
@@ -144,16 +154,13 @@ if(NOT mongocxx_FOUND OR NOT bsoncxx_FOUND)
         
         if(MONGOCXX_LIBRARY AND BSONCXX_LIBRARY)
             message(STATUS "Found MongoDB libraries: ${MONGOCXX_LIBRARY}, ${BSONCXX_LIBRARY}")
+            set(MONGODB_LIBRARIES ${MONGOCXX_LIBRARY} ${BSONCXX_LIBRARY})
         else()
-            message(WARNING "MongoDB libraries not found, linking may fail")
+            message(FATAL_ERROR "MongoDB libraries not found")
         endif()
     else()
         message(FATAL_ERROR "Could not find MongoDB C++ driver headers. Searched in: /usr/local/include, /opt/homebrew/include, /usr/include")
     endif()
-else()
-    message(STATUS "Found MongoDB C++ driver via find_package")
-    # Use the imported targets from the package
-    set(MONGODB_LIBRARIES mongocxx::mongocxx bsoncxx::bsoncxx)
 endif()
 
 # Main application sources (exclude web_server.cpp)

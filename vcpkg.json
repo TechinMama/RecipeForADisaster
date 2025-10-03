@@ -1,7 +1,7 @@
 {
   "name": "recipe-for-a-disaster",
   "version-string": "1.1.0",
-  "description": "A modern C++ recipe management application with MongoDB integration and AI-powered recipe generation",
+  "description": "A modern C++ recipe management application with SQLite integration and AI-powered recipe generation",
   "dependencies": [
     "asio",
     "boost-system",
@@ -9,8 +9,7 @@
     "curl",
     "openssl",
     "utf8proc",
-    "mongo-c-driver",
-    "mongo-cxx-driver",
+    "sqlite3",
     "azure-core-cpp",
     "nlohmann-json",
     "zlib"

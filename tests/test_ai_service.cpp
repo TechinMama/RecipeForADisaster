@@ -1,6 +1,7 @@
 #include <cassert>
 #include <iostream>
 #include <string>
+#include <functional>
 #include "aiService.h"
 
 // Test counters

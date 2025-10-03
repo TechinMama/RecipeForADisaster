@@ -75,6 +75,9 @@ FetchContent_MakeAvailable(nlohmann_json)
 # Find MongoDB C++ driver
 # CMAKE_PREFIX_PATH is set at the top of the file
 
+message(STATUS "VCPKG_ROOT: $ENV{VCPKG_ROOT}")
+message(STATUS "CMAKE_PREFIX_PATH: ${CMAKE_PREFIX_PATH}")
+
 # Try to find using CMake config first (CI/CD and standard installations)
 find_package(mongocxx QUIET)
 find_package(bsoncxx QUIET)
@@ -105,6 +108,8 @@ else()
               $ENV{VCPKG_ROOT}/installed/x64-linux/include/mongocxx/v_noabi/mongocxx
         PATH_SUFFIXES mongocxx/v_noabi mongocxx "")
     
+    message(STATUS "MONGOCXX_INCLUDE_DIR: ${MONGOCXX_INCLUDE_DIR}")
+    
     # If not found in v_noabi, try direct mongocxx path
     if(NOT MONGOCXX_INCLUDE_DIR)
         find_path(MONGOCXX_INCLUDE_DIR mongocxx/client.hpp
@@ -123,6 +128,8 @@ else()
               $ENV{VCPKG_ROOT}/installed/x64-windows/include
         PATH_SUFFIXES bsoncxx/v_noabi bsoncxx)
     
+    message(STATUS "BSONCXX_INCLUDE_DIR: ${BSONCXX_INCLUDE_DIR}")
+    
     if(NOT BSONCXX_INCLUDE_DIR)
         find_path(BSONCXX_INCLUDE_DIR bsoncxx/document.hpp
             PATHS /usr/local/include/bsoncxx/v_noabi /opt/homebrew/include/bsoncxx/v_noabi /usr/include/bsoncxx/v_noabi)
@@ -139,6 +146,8 @@ else()
               $ENV{VCPKG_ROOT}/installed/x64-windows/lib
               $ENV{VCPKG_ROOT}/installed/x64-windows/bin)
     
+    message(STATUS "MONGOCXX_LIBRARY: ${MONGOCXX_LIBRARY}")
+    
     find_library(BSONCXX_LIBRARY bsoncxx
         PATHS /usr/local/lib /opt/homebrew/lib /usr/lib
               $ENV{VCPKG_ROOT}/installed/x64-linux/lib
@@ -146,6 +155,8 @@ else()
               $ENV{VCPKG_ROOT}/installed/arm64-osx/lib
               $ENV{VCPKG_ROOT}/installed/x64-windows/lib
               $ENV{VCPKG_ROOT}/installed/x64-windows/bin)
+    
+    message(STATUS "BSONCXX_LIBRARY: ${BSONCXX_LIBRARY}")
     
     if(MONGOCXX_INCLUDE_DIR AND BSONCXX_INCLUDE_DIR)
         message(STATUS "Found MongoDB headers: ${MONGOCXX_INCLUDE_DIR}, ${BSONCXX_INCLUDE_DIR}")
@@ -159,7 +170,7 @@ else()
             message(FATAL_ERROR "MongoDB libraries not found")
         endif()
     else()
-        message(FATAL_ERROR "Could not find MongoDB C++ driver headers. Searched in: /usr/local/include, /opt/homebrew/include, /usr/include")
+        message(FATAL_ERROR "Could not find MongoDB C++ driver headers. MONGOCXX_INCLUDE_DIR: ${MONGOCXX_INCLUDE_DIR}, BSONCXX_INCLUDE_DIR: ${BSONCXX_INCLUDE_DIR}")
     endif()
 endif()
 

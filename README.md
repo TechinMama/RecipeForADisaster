@@ -27,22 +27,20 @@ A modern C++ recipe management application with MongoDB integration, REST API, a
 
 ### Setup with vcpkg (Recommended)
 ```bash
-# Clone repository
-git clone https://github.com/TechinMama/RecipeForADisaster.git
+# Clone repository with submodules
+git clone --recursive https://github.com/TechinMama/RecipeForADisaster.git
 cd RecipeForADisaster
 
-# Install vcpkg (if not already installed)
-git clone https://github.com/Microsoft/vcpkg.git
+# If you already cloned without --recursive, initialize submodules
+git submodule update --init --recursive
+
+# Bootstrap vcpkg
 cd vcpkg
 ./bootstrap-vcpkg.sh  # On macOS/Linux
 # or .\bootstrap-vcpkg.bat on Windows
-./vcpkg integrate install  # Optional: integrate with system
 
-# Install dependencies
-./vcpkg install boost-system boost-date-time boost-asio curl openssl mongo-c-driver mongo-cxx-driver azure-core-cpp
-
-# Build application
-cmake -S . -B build/ -DCMAKE_TOOLCHAIN_FILE=../vcpkg/scripts/buildsystems/vcpkg.cmake
+# Build application (vcpkg will automatically install dependencies from vcpkg.json)
+cmake -S . -B build/ -DCMAKE_TOOLCHAIN_FILE=./vcpkg/scripts/buildsystems/vcpkg.cmake
 cmake --build build/
 
 # Set environment

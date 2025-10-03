@@ -7,6 +7,11 @@ set(CMAKE_CXX_STANDARD 17) # Set the C++ standard to C++17
 
 project(RecipeForADisaster)
 
+# Windows-specific compiler flags to suppress warnings
+if(WIN32)
+    add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+endif()
+
 include_directories(include src) # Add the 'include' and 'src' directories to the include path
 
 # Enable testing
@@ -65,6 +70,7 @@ if(NOT mongocxx_FOUND OR NOT bsoncxx_FOUND)
               $ENV{VCPKG_ROOT}/installed/x64-linux/include
               $ENV{VCPKG_ROOT}/installed/x64-osx/include
               $ENV{VCPKG_ROOT}/installed/arm64-osx/include
+              $ENV{VCPKG_ROOT}/installed/x64-windows/include
         PATH_SUFFIXES mongocxx/v_noabi mongocxx)
     
     # If not found in v_noabi, try direct mongocxx path
@@ -82,6 +88,7 @@ if(NOT mongocxx_FOUND OR NOT bsoncxx_FOUND)
               $ENV{VCPKG_ROOT}/installed/x64-linux/include
               $ENV{VCPKG_ROOT}/installed/x64-osx/include
               $ENV{VCPKG_ROOT}/installed/arm64-osx/include
+              $ENV{VCPKG_ROOT}/installed/x64-windows/include
         PATH_SUFFIXES bsoncxx/v_noabi bsoncxx)
     
     if(NOT BSONCXX_INCLUDE_DIR)
@@ -96,13 +103,17 @@ if(NOT mongocxx_FOUND OR NOT bsoncxx_FOUND)
         PATHS /usr/local/lib /opt/homebrew/lib /usr/lib
               $ENV{VCPKG_ROOT}/installed/x64-linux/lib
               $ENV{VCPKG_ROOT}/installed/x64-osx/lib
-              $ENV{VCPKG_ROOT}/installed/arm64-osx/lib)
+              $ENV{VCPKG_ROOT}/installed/arm64-osx/lib
+              $ENV{VCPKG_ROOT}/installed/x64-windows/lib
+              $ENV{VCPKG_ROOT}/installed/x64-windows/bin)
     
     find_library(BSONCXX_LIBRARY bsoncxx
         PATHS /usr/local/lib /opt/homebrew/lib /usr/lib
               $ENV{VCPKG_ROOT}/installed/x64-linux/lib
               $ENV{VCPKG_ROOT}/installed/x64-osx/lib
-              $ENV{VCPKG_ROOT}/installed/arm64-osx/lib)
+              $ENV{VCPKG_ROOT}/installed/arm64-osx/lib
+              $ENV{VCPKG_ROOT}/installed/x64-windows/lib
+              $ENV{VCPKG_ROOT}/installed/x64-windows/bin)
     
     if(MONGOCXX_INCLUDE_DIR AND BSONCXX_INCLUDE_DIR)
         message(STATUS "Found MongoDB headers: ${MONGOCXX_INCLUDE_DIR}, ${BSONCXX_INCLUDE_DIR}")

@@ -152,6 +152,8 @@ if(NOT mongocxx_FOUND OR NOT bsoncxx_FOUND)
     endif()
 else()
     message(STATUS "Found MongoDB C++ driver via find_package")
+    # Use the imported targets from the package
+    set(MONGODB_LIBRARIES mongocxx::mongocxx bsoncxx::bsoncxx)
 endif()
 
 # Main application sources (exclude web_server.cpp)
@@ -171,10 +173,10 @@ add_executable(vault_tests tests/test_vault.cpp src/vaultService.cpp src/common_
 
 # Link libraries for test executables
 # Link libraries
-target_link_libraries(RecipeForADisaster mongocxx bsoncxx CURL::libcurl nlohmann_json::nlohmann_json)
-target_link_libraries(web_server Crow::Crow mongocxx bsoncxx CURL::libcurl nlohmann_json::nlohmann_json)
-target_link_libraries(integration_tests mongocxx bsoncxx CURL::libcurl nlohmann_json::nlohmann_json)
-target_link_libraries(ai_service_tests mongocxx bsoncxx CURL::libcurl nlohmann_json::nlohmann_json)
+target_link_libraries(RecipeForADisaster ${MONGODB_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json)
+target_link_libraries(web_server Crow::Crow ${MONGODB_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json)
+target_link_libraries(integration_tests ${MONGODB_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json)
+target_link_libraries(ai_service_tests ${MONGODB_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json)
 target_link_libraries(vault_tests CURL::libcurl nlohmann_json::nlohmann_json)
 
 # Test executable needs the same include directories

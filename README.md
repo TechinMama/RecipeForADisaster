@@ -22,20 +22,27 @@ A modern C++ recipe management application with MongoDB integration, REST API, a
 ### Prerequisites
 - C++17 compatible compiler (GCC 9+, Clang 10+, MSVC 2019+)
 - CMake 3.16+
-- MongoDB C++ Driver 4.1.2+
-- Docker (optional, for easy MongoDB setup)
+- [vcpkg](https://github.com/microsoft/vcpkg) package manager
+- Git
 
-### Setup
+### Setup with vcpkg (Recommended)
 ```bash
 # Clone repository
 git clone https://github.com/TechinMama/RecipeForADisaster.git
 cd RecipeForADisaster
 
-# Start MongoDB
-docker run -d --name recipeforadisaster_mongodb -p 27017:27017 mongo:latest --noauth
+# Install vcpkg (if not already installed)
+git clone https://github.com/Microsoft/vcpkg.git
+cd vcpkg
+./bootstrap-vcpkg.sh  # On macOS/Linux
+# or .\bootstrap-vcpkg.bat on Windows
+./vcpkg integrate install  # Optional: integrate with system
+
+# Install dependencies
+./vcpkg install boost-system boost-date-time boost-asio curl openssl mongo-c-driver mongo-cxx-driver azure-core-cpp
 
 # Build application
-cmake -S . -B build/
+cmake -S . -B build/ -DCMAKE_TOOLCHAIN_FILE=../vcpkg/scripts/buildsystems/vcpkg.cmake
 cmake --build build/
 
 # Set environment
@@ -44,6 +51,23 @@ export MONGODB_URI="mongodb://localhost:27017"
 # Start web server
 ./build/web_server
 ```
+
+### Alternative: System Package Installation
+If you prefer system packages instead of vcpkg:
+
+**macOS (with Homebrew):**
+```bash
+brew install boost mongodb-cxx-driver cmake
+```
+
+**Ubuntu/Debian:**
+```bash
+sudo apt-get update
+sudo apt-get install libboost-system-dev libboost-date-time-dev libcurl4-openssl-dev libssl-dev libmongoc-1.0-0 libmongoc-dev libbson-1.0-0 libbson-dev cmake
+```
+
+**Windows:**
+Use vcpkg as shown above, or install Visual Studio with C++ build tools.
 
 ### Access
 - **Web Interface**: http://localhost:8080

@@ -3,6 +3,23 @@ cmake_minimum_required(VERSION 3.10)
 # Add common installation paths to CMAKE_PREFIX_PATH before project()
 list(APPEND CMAKE_PREFIX_PATH "/usr/local" "/opt/homebrew" "/usr" "/usr/local/lib/cmake" "/usr/lib/cmake")
 
+# Add vcpkg paths if VCPKG_ROOT is set
+if(DEFINED ENV{VCPKG_ROOT})
+    if(WIN32)
+        list(APPEND CMAKE_PREFIX_PATH "$ENV{VCPKG_ROOT}/installed/x64-windows")
+        set(Boost_ROOT "$ENV{VCPKG_ROOT}/installed/x64-windows")
+        list(APPEND CMAKE_IGNORE_PATH "/opt/anaconda3")
+    elseif(APPLE)
+        list(APPEND CMAKE_PREFIX_PATH "$ENV{VCPKG_ROOT}/installed/x64-osx" "$ENV{VCPKG_ROOT}/installed/arm64-osx")
+        set(Boost_ROOT "$ENV{VCPKG_ROOT}/installed/x64-osx")
+        list(APPEND CMAKE_IGNORE_PATH "/opt/anaconda3" "/opt/homebrew")
+    else()
+        list(APPEND CMAKE_PREFIX_PATH "$ENV{VCPKG_ROOT}/installed/x64-linux")
+        set(Boost_ROOT "$ENV{VCPKG_ROOT}/installed/x64-linux")
+        list(APPEND CMAKE_IGNORE_PATH "/opt/anaconda3")
+    endif()
+endif()
+
 set(CMAKE_CXX_STANDARD 17) # Set the C++ standard to C++17
 
 project(RecipeForADisaster)
@@ -24,6 +41,8 @@ FetchContent_Declare(
   GIT_REPOSITORY https://github.com/CrowCpp/Crow.git
   GIT_TAG v1.0+5
 )
+# Ensure Crow uses the same toolchain
+set(CROW_CMAKE_ARGS -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE})
 FetchContent_MakeAvailable(crow)
 
 # Add Azure SDK for C++
@@ -71,7 +90,11 @@ if(NOT mongocxx_FOUND OR NOT bsoncxx_FOUND)
               $ENV{VCPKG_ROOT}/installed/x64-osx/include
               $ENV{VCPKG_ROOT}/installed/arm64-osx/include
               $ENV{VCPKG_ROOT}/installed/x64-windows/include
-        PATH_SUFFIXES mongocxx/v_noabi mongocxx)
+              $ENV{VCPKG_ROOT}/installed/x64-linux/include/mongocxx
+              $ENV{VCPKG_ROOT}/installed/x64-linux/include/mongocxx/v_noabi
+              $ENV{VCPKG_ROOT}/installed/x64-linux/include/mongocxx/v_noabi/mongocxx
+        PATH_SUFFIXES mongocxx/v_noabi mongocxx ""
+        NO_DEFAULT_PATH)
     
     # If not found in v_noabi, try direct mongocxx path
     if(NOT MONGOCXX_INCLUDE_DIR)

@@ -93,8 +93,7 @@ if(NOT mongocxx_FOUND OR NOT bsoncxx_FOUND)
               $ENV{VCPKG_ROOT}/installed/x64-linux/include/mongocxx
               $ENV{VCPKG_ROOT}/installed/x64-linux/include/mongocxx/v_noabi
               $ENV{VCPKG_ROOT}/installed/x64-linux/include/mongocxx/v_noabi/mongocxx
-        PATH_SUFFIXES mongocxx/v_noabi mongocxx ""
-        NO_DEFAULT_PATH)
+        PATH_SUFFIXES mongocxx/v_noabi mongocxx "")
     
     # If not found in v_noabi, try direct mongocxx path
     if(NOT MONGOCXX_INCLUDE_DIR)

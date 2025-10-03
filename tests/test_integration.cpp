@@ -3,6 +3,10 @@
 #include <vector>
 #include <string>
 #include <functional>
+#include <thread>
+#include <chrono>
+#include <cstdio>
+#include <cerrno>
 #include "recipe.h"
 #include "recipeManagerSQLite.h"
 
@@ -115,10 +119,19 @@ bool testDatabaseOperations() {
         // Use a test database file
         std::string testDbPath = "test_recipes.db";
 
-        // Clean up any existing test database
-        std::remove(testDbPath.c_str());
+        // Clean up any existing test database (try multiple times on Windows)
+        for (int i = 0; i < 5; ++i) {
+            if (std::remove(testDbPath.c_str()) == 0 || errno == ENOENT) {
+                break; // Successfully removed or file doesn't exist
+            }
+#ifdef _WIN32
+            // On Windows, wait a bit and try again
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+#endif
+        }
 
-        RecipeManagerSQLite manager(testDbPath);
+        {
+            RecipeManagerSQLite manager(testDbPath);
 
         // Test connection
         if (!manager.isConnected()) {
@@ -179,8 +192,21 @@ bool testDatabaseOperations() {
             return false;
         }
 
-        // Clean up test database
-        std::remove(testDbPath.c_str());
+        // Explicitly close the database before cleanup
+        // The destructor will handle this, but we want to be explicit
+
+        // Clean up test database (try multiple times on Windows)
+        for (int i = 0; i < 5; ++i) {
+            if (std::remove(testDbPath.c_str()) == 0) {
+                break; // Successfully removed
+            }
+#ifdef _WIN32
+            // On Windows, wait a bit and try again
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+#endif
+        }
+
+        }
 
         return true;
 

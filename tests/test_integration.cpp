@@ -2,8 +2,13 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <functional>
+#include <thread>
+#include <chrono>
+#include <cstdio>
+#include <cerrno>
 #include "recipe.h"
-#include "recipeManager.h"
+#include "recipeManagerSQLite.h"
 
 // Test counters
 int testsRun = 0;
@@ -108,109 +113,137 @@ bool testRecipeValidation() {
     return true;
 }
 
-// Test database operations (requires MongoDB connection)
+// Test database operations (SQLite)
 bool testDatabaseOperations() {
     try {
-        // Initialize MongoDB instance
-        mongocxx::instance instance{};
+        // Use a test database file in the current directory (should be writable)
+        std::string testDbPath = "test_recipes.db";
 
-        // Use a test database URI - this should be set to a test database
-        std::string testUri = std::getenv("MONGODB_TEST_URI") ?
-                             std::getenv("MONGODB_TEST_URI") :
-                             "mongodb://localhost:27017";
+        // Clean up any existing test database (try multiple times on Windows)
+        for (int i = 0; i < 5; ++i) {
+            if (std::remove(testDbPath.c_str()) == 0 || errno == ENOENT) {
+                break; // Successfully removed or file doesn't exist
+            }
+#ifdef _WIN32
+            // On Windows, wait a bit and try again
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+#endif
+        }
 
-        recipeManager manager(testUri);
+        {
+            RecipeManagerSQLite manager(testDbPath);
 
         // Test connection
         if (!manager.isConnected()) {
-            std::cout << "Skipping database tests - MongoDB not available" << std::endl;
-            return true; // Skip test if MongoDB not available
+            std::cout << "Failed to connect to SQLite database" << std::endl;
+            return false;
         }
 
         // Test adding a recipe
-        recipe testRecipe("Test Recipe", "Test Ingredients", "Test Instructions",
+        recipe testRecipe("Test Recipe", "ingredient1, ingredient2", "step1, step2",
                          "2 servings", "15 minutes", "Test", "Test");
 
-        auto addResult = manager.addRecipe(testRecipe);
-        if (!addResult.success) {
-            std::cerr << "Failed to add test recipe: " << addResult.errorMessage << std::endl;
+        if (!manager.addRecipe(testRecipe)) {
+            std::cerr << "Failed to add test recipe" << std::endl;
             return false;
         }
 
         // Test viewing recipes
-        auto recipes = manager.viewRecipes();
+        auto recipes = manager.getAllRecipes();
         if (recipes.empty()) {
             std::cerr << "No recipes found after adding test recipe" << std::endl;
             return false;
         }
 
         // Test updating a recipe
-        recipe updatedRecipe("Test Recipe", "Updated Ingredients", "Updated Instructions",
-                           "3 servings", "20 minutes", "Updated", "Updated");
+        recipe updatedRecipe("Updated Recipe", "new ingredient", "new step",
+                            "3 servings", "20 minutes", "Updated", "Updated");
 
-        auto updateResult = manager.updateRecipe("Test Recipe", updatedRecipe);
-        if (!updateResult.success) {
-            std::cerr << "Failed to update test recipe: " << updateResult.errorMessage << std::endl;
+        std::string recipeId = recipes[0].getId();
+        if (!manager.updateRecipe(recipeId, updatedRecipe)) {
+            std::cerr << "Failed to update test recipe" << std::endl;
             return false;
         }
 
-        // Test searching recipes
-        auto searchResults = manager.searchRecipes("Test");
+        // Test getting a specific recipe
+        auto retrievedRecipe = manager.getRecipe(recipeId);
+        if (!retrievedRecipe || retrievedRecipe->getTitle() != "Updated Recipe") {
+            std::cerr << "Failed to retrieve updated recipe" << std::endl;
+            return false;
+        }
+
+        // Test search
+        auto searchResults = manager.searchByTitle("Updated");
         if (searchResults.empty()) {
-            std::cerr << "Search failed to find test recipe" << std::endl;
+            std::cerr << "Search failed to find updated recipe" << std::endl;
             return false;
         }
 
-        // Test deleting a recipe
-        auto deleteResult = manager.deleteRecipe("Test Recipe");
-        if (!deleteResult.success) {
-            std::cerr << "Failed to delete test recipe: " << deleteResult.errorMessage << std::endl;
+        // Test deletion
+        if (!manager.deleteRecipe(recipeId)) {
+            std::cerr << "Failed to delete test recipe" << std::endl;
             return false;
         }
 
         // Verify deletion
-        auto finalRecipes = manager.viewRecipes();
-        for (const auto& r : finalRecipes) {
-            if (r.getTitle() == "Test Recipe") {
-                std::cerr << "Test recipe still exists after deletion" << std::endl;
-                return false;
-            }
+        auto finalRecipes = manager.getAllRecipes();
+        if (finalRecipes.size() != 0) {
+            std::cerr << "Recipe still exists after deletion" << std::endl;
+            return false;
         }
 
-    } catch (const recipeManager::DatabaseError& e) {
-        std::cerr << "Database error during testing: " << e.what() << std::endl;
-        return false;
+        // Explicitly close the database before cleanup
+        // The destructor will handle this, but we want to be explicit
+
+        // Clean up test database (try multiple times on Windows)
+        for (int i = 0; i < 5; ++i) {
+            if (std::remove(testDbPath.c_str()) == 0) {
+                break; // Successfully removed
+            }
+#ifdef _WIN32
+            // On Windows, wait a bit and try again
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+#endif
+        }
+
+        }
+
+        return true;
+
     } catch (const std::exception& e) {
-        std::cerr << "Unexpected error during database testing: " << e.what() << std::endl;
+        std::cerr << "Database test failed with exception: " << e.what() << std::endl;
         return false;
     }
-
-    return true;
 }
 
 // Test error handling scenarios
 bool testErrorHandling() {
-    // Test invalid MongoDB URI
+    // Test invalid database path
     try {
-        mongocxx::instance instance{};
-        recipeManager manager("invalid://uri");
-        return false; // Should have thrown exception
-    } catch (const recipeManager::DatabaseError&) {
-        // Expected
-    } catch (const std::exception& e) {
-        std::cerr << "Unexpected exception type: " << e.what() << std::endl;
+        RecipeManagerSQLite manager("/invalid/path/to/database.db");
+        // Try to perform an operation that would require database access
+        auto recipes = manager.getAllRecipes();
+        std::cerr << "Expected exception for invalid database path" << std::endl;
         return false;
+    } catch (const std::exception&) {
+        // Expected - invalid path should cause exception
     }
 
-    // Test empty MongoDB URI
+    // Test operations on non-existent database
     try {
-        mongocxx::instance instance{};
-        recipeManager manager("");
-        return false; // Should have thrown exception
-    } catch (const recipeManager::DatabaseError&) {
-        // Expected
+        std::string tempDbPath = "temp_test.db";
+        RecipeManagerSQLite manager(tempDbPath);
+        // This should work - SQLite will create the database
+        recipe testRecipe("Test", "Ingredients", "Instructions", "4", "30min", "Italian", "Main");
+        auto result = manager.addRecipe(testRecipe);
+        if (!result) {
+            std::cerr << "Failed to add recipe to new database" << std::endl;
+            return false;
+        }
+        // Clean up
+        std::remove(tempDbPath.c_str());
     } catch (const std::exception& e) {
-        std::cerr << "Unexpected exception type: " << e.what() << std::endl;
+        std::cerr << "Unexpected exception with new database: " << e.what() << std::endl;
         return false;
     }
 

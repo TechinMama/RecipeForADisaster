@@ -13,16 +13,16 @@ public:
     ~RecipeManagerSQLite();
 
     // Core CRUD operations
-    bool addRecipe(const Recipe& recipe);
-    bool updateRecipe(const std::string& id, const Recipe& recipe);
+    bool addRecipe(const recipe& recipe);
+    bool updateRecipe(const std::string& id, const recipe& recipe);
     bool deleteRecipe(const std::string& id);
-    std::unique_ptr<Recipe> getRecipe(const std::string& id);
-    std::vector<Recipe> getAllRecipes();
+    std::unique_ptr<recipe> getRecipe(const std::string& id);
+    std::vector<recipe> getAllRecipes();
 
     // Search operations
-    std::vector<Recipe> searchByTitle(const std::string& title);
-    std::vector<Recipe> searchByCategory(const std::string& category);
-    std::vector<Recipe> searchByType(const std::string& type);
+    std::vector<recipe> searchByTitle(const std::string& title);
+    std::vector<recipe> searchByCategory(const std::string& category);
+    std::vector<recipe> searchByType(const std::string& type);
 
     // Utility
     bool isConnected() const;
@@ -34,8 +34,8 @@ private:
 
     // Helper methods
     std::string generateId();
-    std::string recipeToJson(const Recipe& recipe);
-    Recipe jsonToRecipe(const std::string& json);
+    std::string recipeToJson(const recipe& recipe);
+    recipe jsonToRecipe(const std::string& json);
 };
 
 #endif // RECIPE_MANAGER_SQLITE_H

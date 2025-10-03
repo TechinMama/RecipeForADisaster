@@ -123,16 +123,18 @@ else()
               $ENV{VCPKG_ROOT}/installed/x64-osx/include
               $ENV{VCPKG_ROOT}/installed/arm64-osx/include
               $ENV{VCPKG_ROOT}/installed/x64-windows/include
-        PATH_SUFFIXES bsoncxx/v_noabi bsoncxx "")
+        PATH_SUFFIXES bsoncxx/v_noabi bsoncxx "" bsoncxx/v_noabi/bsoncxx)
     
     message(STATUS "BSONCXX_INCLUDE_DIR: ${BSONCXX_INCLUDE_DIR}")
     
     if(NOT BSONCXX_INCLUDE_DIR)
         find_path(BSONCXX_INCLUDE_DIR bsoncxx/document.hpp
-            PATHS /usr/local/include/bsoncxx/v_noabi /opt/homebrew/include/bsoncxx/v_noabi /usr/include/bsoncxx/v_noabi)
+            PATHS /usr/local/include/bsoncxx/v_noabi /opt/homebrew/include/bsoncxx/v_noabi /usr/include/bsoncxx/v_noabi
+                  $ENV{VCPKG_ROOT}/installed/x64-linux/include/bsoncxx/v_noabi)
         if(BSONCXX_INCLUDE_DIR)
             get_filename_component(BSONCXX_INCLUDE_DIR "${BSONCXX_INCLUDE_DIR}" DIRECTORY)
         endif()
+        message(STATUS "Fallback BSONCXX_INCLUDE_DIR: ${BSONCXX_INCLUDE_DIR}")
     endif()
     
     find_library(MONGOCXX_LIBRARY mongocxx
@@ -155,11 +157,26 @@ else()
     
     message(STATUS "BSONCXX_LIBRARY: ${BSONCXX_LIBRARY}")
     
+    # Try alternative library names
+    if(NOT MONGOCXX_LIBRARY)
+        find_library(MONGOCXX_LIBRARY libmongocxx
+            PATHS $ENV{VCPKG_ROOT}/installed/x64-linux/lib)
+        message(STATUS "Alternative MONGOCXX_LIBRARY: ${MONGOCXX_LIBRARY}")
+    endif()
+    
+    if(NOT BSONCXX_LIBRARY)
+        find_library(BSONCXX_LIBRARY libbsoncxx
+            PATHS $ENV{VCPKG_ROOT}/installed/x64-linux/lib)
+        message(STATUS "Alternative BSONCXX_LIBRARY: ${BSONCXX_LIBRARY}")
+    endif()
+    
     if(MONGOCXX_INCLUDE_DIR AND BSONCXX_INCLUDE_DIR)
         message(STATUS "Found MongoDB headers: ${MONGOCXX_INCLUDE_DIR}, ${BSONCXX_INCLUDE_DIR}")
-        # For v_noabi includes, we need the parent directory of v_noabi
-        get_filename_component(MONGOCXX_BASE_DIR "${MONGOCXX_INCLUDE_DIR}" DIRECTORY)
-        get_filename_component(BSONCXX_BASE_DIR "${BSONCXX_INCLUDE_DIR}" DIRECTORY)
+        # For v_noabi includes, we need the base include directory (two levels up from v_noabi)
+        get_filename_component(MONGOCXX_TEMP_DIR "${MONGOCXX_INCLUDE_DIR}" DIRECTORY)  # remove v_noabi
+        get_filename_component(MONGOCXX_BASE_DIR "${MONGOCXX_TEMP_DIR}" DIRECTORY)     # remove mongocxx
+        get_filename_component(BSONCXX_TEMP_DIR "${BSONCXX_INCLUDE_DIR}" DIRECTORY)   # remove v_noabi  
+        get_filename_component(BSONCXX_BASE_DIR "${BSONCXX_TEMP_DIR}" DIRECTORY)      # remove bsoncxx
         include_directories(${MONGOCXX_BASE_DIR})
         include_directories(${BSONCXX_BASE_DIR})
         

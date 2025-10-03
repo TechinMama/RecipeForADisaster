@@ -96,9 +96,9 @@ if(TARGET mongocxx::mongocxx AND TARGET bsoncxx::bsoncxx)
 else()
     message(STATUS "MongoDB imported targets not found, using manual paths")
     
-    # For CI environments, use known vcpkg installation paths
-    if(DEFINED ENV{CI} OR DEFINED ENV{GITHUB_ACTIONS})
-        message(STATUS "Using hardcoded vcpkg paths for CI environment")
+    # For CI environments or container builds, use known vcpkg installation paths
+    if(DEFINED ENV{CI} OR DEFINED ENV{GITHUB_ACTIONS} OR "$ENV{VCPKG_ROOT}" STREQUAL "/vcpkg")
+        message(STATUS "Using hardcoded vcpkg paths for CI/container environment")
         set(MONGODB_LIBRARIES 
             $ENV{VCPKG_ROOT}/installed/x64-linux/lib/libmongocxx.a
             $ENV{VCPKG_ROOT}/installed/x64-linux/lib/libbsoncxx.a
@@ -198,6 +198,7 @@ else()
         else()
             message(FATAL_ERROR "Could not find MongoDB C++ driver headers. MONGOCXX_INCLUDE_DIR: ${MONGOCXX_INCLUDE_DIR}, BSONCXX_INCLUDE_DIR: ${BSONCXX_INCLUDE_DIR}")
         endif()
+    endif()  # End of manual finding else block
     endif()
 endif()
 

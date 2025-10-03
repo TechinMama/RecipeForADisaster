@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Simple Makefile-based build script for RecipeForADisaster
-# Alternative to CMake if MongoDB integration issues persist
+# Alternative to CMake if SQLite integration issues persist
 
 set -e
 
@@ -17,7 +17,7 @@ elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
     # Linux
     MONGODB_INCLUDE="/usr/local/include"
     MONGODB_LIB="/usr/local/lib"
-    LIBS="-lmongocxx -lbsoncxx -lcurl -lssl -lcrypto -lz -pthread"
+        LIBS="-lsqlite3 -lcurl -lssl -lcrypto -lz -pthread"
 else
     echo "❌ Unsupported OS: $OSTYPE"
     exit 1

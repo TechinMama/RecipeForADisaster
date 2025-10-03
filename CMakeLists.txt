@@ -103,14 +103,11 @@ else()
               $ENV{VCPKG_ROOT}/installed/x64-osx/include
               $ENV{VCPKG_ROOT}/installed/arm64-osx/include
               $ENV{VCPKG_ROOT}/installed/x64-windows/include
-              $ENV{VCPKG_ROOT}/installed/x64-linux/include/mongocxx
-              $ENV{VCPKG_ROOT}/installed/x64-linux/include/mongocxx/v_noabi
-              $ENV{VCPKG_ROOT}/installed/x64-linux/include/mongocxx/v_noabi/mongocxx
         PATH_SUFFIXES mongocxx/v_noabi mongocxx "")
     
     message(STATUS "MONGOCXX_INCLUDE_DIR: ${MONGOCXX_INCLUDE_DIR}")
     
-    # If not found in v_noabi, try direct mongocxx path
+    # If not found, try the fallback paths
     if(NOT MONGOCXX_INCLUDE_DIR)
         find_path(MONGOCXX_INCLUDE_DIR mongocxx/client.hpp
             PATHS /usr/local/include/mongocxx/v_noabi /opt/homebrew/include/mongocxx/v_noabi /usr/include/mongocxx/v_noabi)
@@ -126,7 +123,7 @@ else()
               $ENV{VCPKG_ROOT}/installed/x64-osx/include
               $ENV{VCPKG_ROOT}/installed/arm64-osx/include
               $ENV{VCPKG_ROOT}/installed/x64-windows/include
-        PATH_SUFFIXES bsoncxx/v_noabi bsoncxx)
+        PATH_SUFFIXES bsoncxx/v_noabi bsoncxx "")
     
     message(STATUS "BSONCXX_INCLUDE_DIR: ${BSONCXX_INCLUDE_DIR}")
     
@@ -160,8 +157,11 @@ else()
     
     if(MONGOCXX_INCLUDE_DIR AND BSONCXX_INCLUDE_DIR)
         message(STATUS "Found MongoDB headers: ${MONGOCXX_INCLUDE_DIR}, ${BSONCXX_INCLUDE_DIR}")
-        include_directories(${MONGOCXX_INCLUDE_DIR})
-        include_directories(${BSONCXX_INCLUDE_DIR})
+        # For v_noabi includes, we need the parent directory of v_noabi
+        get_filename_component(MONGOCXX_BASE_DIR "${MONGOCXX_INCLUDE_DIR}" DIRECTORY)
+        get_filename_component(BSONCXX_BASE_DIR "${BSONCXX_INCLUDE_DIR}" DIRECTORY)
+        include_directories(${MONGOCXX_BASE_DIR})
+        include_directories(${BSONCXX_BASE_DIR})
         
         if(MONGOCXX_LIBRARY AND BSONCXX_LIBRARY)
             message(STATUS "Found MongoDB libraries: ${MONGOCXX_LIBRARY}, ${BSONCXX_LIBRARY}")

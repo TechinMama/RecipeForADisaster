@@ -5,6 +5,53 @@ All notable changes to **RecipeForADisaster** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2025-10-03
+
+### 🚀 Major Updates
+
+**RecipeForADisaster v1.1.0** brings significant improvements to build reliability, dependency management, and deployment capabilities.
+
+### ✨ Added
+
+#### Build System & Dependencies
+- **Standalone ASIO Support**: Updated Crow framework to v1.2.0 with standalone ASIO compatibility
+- **Enhanced Static Linking**: Complete MongoDB static linking with all transitive dependencies
+- **Improved Dependency Management**: Added nlohmann/json and zlib to build dependencies
+- **Cross-Platform Compatibility**: Verified builds on Windows, macOS, and Linux
+
+#### Infrastructure Improvements
+- **Docker Integration**: Updated container build with new vcpkg dependencies
+- **CI/CD Pipeline**: Enhanced GitHub Actions workflow for multi-platform builds
+- **Repository Management**: Added vcpkg/ directory to .gitignore
+
+### 🔧 Changed
+
+#### Technical Updates
+- **Crow Framework**: Upgraded from v1.0+5 to v1.2.0 (standalone ASIO)
+- **MongoDB Integration**: Improved static linking with proper header detection
+- **Build Configuration**: Enhanced CMake configuration for better dependency resolution
+- **ASIO Dependencies**: Replaced Boost.ASIO with standalone ASIO library
+
+### 🐛 Fixed
+
+#### Build & Linking Issues
+- **MongoDB Static Linking**: Resolved undefined symbol errors in production builds
+- **BSONCXX Header Detection**: Fixed header path detection from `document.hpp` to `json.hpp`
+- **ASIO Library Detection**: Corrected CMake configuration for standalone ASIO
+- **Include Path Configuration**: Added proper v_noabi include directory support
+
+### 🔄 Migration Notes
+- **Breaking Changes**: Requires MongoDB C++ driver with v_noabi headers
+- **New Dependencies**: Applications using static linking now require additional system libraries
+- **Build System**: Updated CMake configuration may require clean rebuilds
+
+### 📋 Dependencies Updated
+- **Crow**: v1.0+5 → v1.2.0 (standalone ASIO)
+- **ASIO**: Added standalone ASIO library
+- **Build Tools**: Enhanced vcpkg and CMake configurations
+
+---
+
 ## [1.0.0] - 2025-10-02
 
 ### 🎉 Initial Release

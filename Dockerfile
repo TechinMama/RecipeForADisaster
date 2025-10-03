@@ -18,14 +18,17 @@ RUN git clone https://github.com/Microsoft/vcpkg.git /vcpkg && \
 # Install C++ dependencies via vcpkg
 RUN cd /vcpkg && \
     ./vcpkg install \
+    asio \
     boost-system \
     boost-date-time \
-    boost-asio \
     curl \
     openssl \
     mongo-c-driver \
     mongo-cxx-driver \
     azure-core-cpp \
+    nlohmann-json \
+    utf8proc \
+    zlib \
     --triplet x64-linux
 
 # Copy source code

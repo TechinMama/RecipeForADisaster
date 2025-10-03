@@ -2,6 +2,7 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <functional>
 #include "recipe.h"
 
 // Test counters

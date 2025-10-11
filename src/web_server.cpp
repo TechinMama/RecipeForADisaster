@@ -22,33 +22,7 @@ struct ErrorHandler {
 };
 
 int main() {
-    // Initialize MongoDB instance
-    mongocxx::instance instance{};
-
-    // Initialize Vault service (optional - fallback to environment variables if not configured)
-    std::unique_ptr<VaultService> vaultService = nullptr;
-    const char* vaultAddress = std::getenv("VAULT_ADDR");
-    const char* vaultToken = std::getenv("VAULT_TOKEN");
-
-    if (vaultAddress && vaultToken) {
-        try {
-            VaultService::VaultConfig vaultConfig;
-            vaultConfig.address = vaultAddress;
-            vaultConfig.token = vaultToken;
-
-            vaultService = std::make_unique<VaultService>(vaultConfig);
-            std::cout << "Vault service initialized successfully!" << std::endl;
-        } catch (const std::exception& e) {
-            std::cout << "Warning: Failed to initialize Vault service: " << e.what() << std::endl;
-            std::cout << "Falling back to environment variable configuration." << std::endl;
-            vaultService = nullptr;
-        }
-    } else {
-        std::cout << "Vault not configured. Using environment variables for credentials." << std::endl;
-        std::cout << "Set VAULT_ADDR and VAULT_TOKEN to enable Vault-based credential management." << std::endl;
-    }
-
-        // Initialize recipe manager
+    // Initialize recipe manager
     std::unique_ptr<RecipeManagerSQLite> managerPtr;
 
     // Use SQLite database
@@ -59,54 +33,37 @@ int main() {
         return 1;
     }
 
-    RecipeManagerSQLite& manager = *managerPtr;
-
-    // Check database connection
+    RecipeManagerSQLite& manager = *managerPtr;    // Check database connection
     if (!manager.isConnected()) {
-        std::cerr << "Failed to connect to MongoDB." << std::endl;
+        std::cerr << "Failed to connect to SQLite database." << std::endl;
         return 1;
     }
 
-    std::cout << "Connected to MongoDB successfully!" << std::endl;
+    std::cout << "Connected to SQLite database successfully!" << std::endl;
 
     // Initialize AI service (optional - will be null if not configured)
     std::unique_ptr<AIService> aiService = nullptr;
 
-    if (vaultService) {
-        // Use Vault for secure credential retrieval
+    // Fallback to environment variables
+    const char* azureEndpoint = std::getenv("AZURE_OPENAI_ENDPOINT");
+    const char* azureApiKey = std::getenv("AZURE_OPENAI_KEY");
+    const char* azureDeployment = std::getenv("AZURE_OPENAI_DEPLOYMENT");
+
+    if (azureEndpoint && azureApiKey && azureDeployment) {
         try {
-            aiService = std::make_unique<AIService>(vaultService.get(), "ai/azure-openai");
+            aiService = std::make_unique<AIService>(azureEndpoint, azureApiKey, azureDeployment);
             if (aiService->isConnected()) {
                 std::cout << "Connected to Azure OpenAI successfully!" << std::endl;
             } else {
                 std::cout << "Warning: Azure OpenAI service initialized but connection test failed." << std::endl;
             }
         } catch (const AIService::AIServiceError& e) {
-            std::cout << "Warning: Failed to initialize Azure OpenAI service with Vault: " << e.what() << std::endl;
+            std::cout << "Warning: Failed to initialize Azure OpenAI service: " << e.what() << std::endl;
             aiService = nullptr;
         }
     } else {
-        // Fallback to environment variables
-        const char* azureEndpoint = std::getenv("AZURE_OPENAI_ENDPOINT");
-        const char* azureApiKey = std::getenv("AZURE_OPENAI_KEY");
-        const char* azureDeployment = std::getenv("AZURE_OPENAI_DEPLOYMENT");
-
-        if (azureEndpoint && azureApiKey && azureDeployment) {
-            try {
-                aiService = std::make_unique<AIService>(azureEndpoint, azureApiKey, azureDeployment);
-                if (aiService->isConnected()) {
-                    std::cout << "Connected to Azure OpenAI successfully!" << std::endl;
-                } else {
-                    std::cout << "Warning: Azure OpenAI service initialized but connection test failed." << std::endl;
-                }
-            } catch (const AIService::AIServiceError& e) {
-                std::cout << "Warning: Failed to initialize Azure OpenAI service: " << e.what() << std::endl;
-                aiService = nullptr;
-            }
-        } else {
-            std::cout << "Azure OpenAI not configured. Recipe generation features will be unavailable." << std::endl;
-            std::cout << "Set AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_KEY, and AZURE_OPENAI_DEPLOYMENT to enable AI features." << std::endl;
-        }
+        std::cout << "Azure OpenAI not configured. Recipe generation features will be unavailable." << std::endl;
+        std::cout << "Set AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_KEY, and AZURE_OPENAI_DEPLOYMENT to enable AI features." << std::endl;
     }
 
     // Create Crow app with CORS middleware
@@ -134,101 +91,86 @@ int main() {
         return res;
     };
 
-    // GET /api/recipes - Get all recipes with pagination
+    // GET /api/recipes - Get all recipes
     CROW_ROUTE(app, "/api/recipes")
     .methods("GET"_method)
-    ([&manager, &createErrorResponse, &createSuccessResponse](const crow::request& req) {
+    ([&manager, &createErrorResponse, &createSuccessResponse](const crow::request& req, crow::response& res) {
         try {
-            int page = 1;
-            int pageSize = 10;
-
-            // Parse query parameters
-            if (req.url_params.get("page")) {
-                page = std::stoi(req.url_params.get("page"));
-            }
-            if (req.url_params.get("pageSize")) {
-                pageSize = std::stoi(req.url_params.get("pageSize"));
-            }
-
-            auto result = manager.getRecipesPaginated(page, pageSize);
+            auto recipes = manager.getAllRecipes();
 
             crow::json::wvalue data;
-            data["page"] = result.page;
-            data["pageSize"] = result.pageSize;
-            data["totalCount"] = result.totalCount;
-            data["totalPages"] = result.totalPages;
-
-            crow::json::wvalue recipes = crow::json::wvalue::list();
-            for (size_t i = 0; i < result.recipes.size(); ++i) {
+            crow::json::wvalue recipes_json = crow::json::wvalue::list();
+            for (size_t i = 0; i < recipes.size(); ++i) {
                 crow::json::wvalue recipe_json;
-                recipe_json["title"] = result.recipes[i].getTitle();
-                recipe_json["ingredients"] = result.recipes[i].getIngredients();
-                recipe_json["instructions"] = result.recipes[i].getInstructions();
-                recipe_json["servingSize"] = result.recipes[i].getServingSize();
-                recipe_json["cookTime"] = result.recipes[i].getCookTime();
-                recipe_json["category"] = result.recipes[i].getCategory();
-                recipe_json["type"] = result.recipes[i].getType();
-                recipes[i] = std::move(recipe_json);
+                recipe_json["title"] = recipes[i].getTitle();
+                recipe_json["ingredients"] = recipes[i].getIngredients();
+                recipe_json["instructions"] = recipes[i].getInstructions();
+                recipe_json["servingSize"] = recipes[i].getServingSize();
+                recipe_json["cookTime"] = recipes[i].getCookTime();
+                recipe_json["category"] = recipes[i].getCategory();
+                recipe_json["type"] = recipes[i].getType();
+                recipes_json[i] = std::move(recipe_json);
             }
-            data["recipes"] = std::move(recipes);
+            data["recipes"] = std::move(recipes_json);
 
-            return createSuccessResponse(data);
+            res = createSuccessResponse(data);
         } catch (const std::exception& e) {
-            return createErrorResponse(std::string("Failed to get recipes: ") + e.what(), 500);
+            res = createErrorResponse(std::string("Failed to get recipes: ") + e.what(), 500);
         }
+        res.end();
     });
 
-    // GET /api/recipes/search - Search recipes with pagination
+    // GET /api/recipes/search - Search recipes
     CROW_ROUTE(app, "/api/recipes/search")
     .methods("GET"_method)
-    ([&manager, &createErrorResponse, &createSuccessResponse](const crow::request& req) {
+    ([&manager, &createErrorResponse, &createSuccessResponse](const crow::request& req, crow::response& res) {
         try {
             std::string criteria;
-            int page = 1;
-            int pageSize = 10;
 
             if (req.url_params.get("q")) {
                 criteria = req.url_params.get("q");
             }
-            if (req.url_params.get("page")) {
-                page = std::stoi(req.url_params.get("page"));
-            }
-            if (req.url_params.get("pageSize")) {
-                pageSize = std::stoi(req.url_params.get("pageSize"));
-            }
 
-            auto result = manager.searchRecipesPaginated(criteria, page, pageSize);
+            auto recipes = manager.searchByTitle(criteria);
 
             crow::json::wvalue data;
-            data["page"] = result.page;
-            data["pageSize"] = result.pageSize;
-            data["totalCount"] = result.totalCount;
-            data["totalPages"] = result.totalPages;
-
-            crow::json::wvalue recipes = crow::json::wvalue::list();
-            for (size_t i = 0; i < result.recipes.size(); ++i) {
+            crow::json::wvalue recipes_json = crow::json::wvalue::list();
+            for (size_t i = 0; i < recipes.size(); ++i) {
                 crow::json::wvalue recipe_json;
-                recipe_json["title"] = result.recipes[i].getTitle();
-                recipe_json["ingredients"] = result.recipes[i].getIngredients();
-                recipe_json["instructions"] = result.recipes[i].getInstructions();
-                recipe_json["servingSize"] = result.recipes[i].getServingSize();
-                recipe_json["cookTime"] = result.recipes[i].getCookTime();
-                recipe_json["category"] = result.recipes[i].getCategory();
-                recipe_json["type"] = result.recipes[i].getType();
-                recipes[i] = std::move(recipe_json);
+                recipe_json["title"] = recipes[i].getTitle();
+                recipe_json["ingredients"] = recipes[i].getIngredients();
+                recipe_json["instructions"] = recipes[i].getInstructions();
+                recipe_json["servingSize"] = recipes[i].getServingSize();
+                recipe_json["cookTime"] = recipes[i].getCookTime();
+                recipe_json["category"] = recipes[i].getCategory();
+                recipe_json["type"] = recipes[i].getType();
+                recipes_json[i] = std::move(recipe_json);
             }
-            data["recipes"] = std::move(recipes);
+            data["recipes"] = std::move(recipes_json);
 
-            return createSuccessResponse(data);
+            res = createSuccessResponse(data);
         } catch (const std::exception& e) {
-            return createErrorResponse(std::string("Failed to search recipes: ") + e.what(), 500);
+            res = createErrorResponse(std::string("Failed to search recipes: ") + e.what(), 500);
         }
+        res.end();
     });
 
-    // GET /api/recipes/categories - Get recipes by category
+    // GET /api/health - Health check endpoint
+    CROW_ROUTE(app, "/api/health")
+    .methods("GET"_method)
+    ([&manager](const crow::request& req, crow::response& res) {
+        crow::json::wvalue health;
+        health["status"] = "healthy";
+        health["database"] = manager.isConnected() ? "connected" : "disconnected";
+        res.write(health.dump());
+        res.code = 200;
+        res.end();
+    });
+
+    // GET /api/recipes/categories/<string> - Get recipes by category
     CROW_ROUTE(app, "/api/recipes/categories/<string>")
     .methods("GET"_method)
-    ([&manager, &createErrorResponse, &createSuccessResponse](const crow::request& req, const std::string& category) {
+    ([&manager, &createErrorResponse, &createSuccessResponse](const crow::request& req, crow::response& res, const std::string& category) {
         try {
             auto recipes = manager.searchByCategory(category);
 
@@ -247,16 +189,17 @@ int main() {
             }
             data["recipes"] = std::move(recipes_json);
 
-            return createSuccessResponse(data);
+            res = createSuccessResponse(data);
         } catch (const std::exception& e) {
-            return createErrorResponse(std::string("Failed to get recipes by category: ") + e.what(), 500);
+            res = createErrorResponse(std::string("Failed to get recipes by category: ") + e.what(), 500);
         }
+        res.end();
     });
 
     // GET /api/recipes/types/<string> - Get recipes by type
     CROW_ROUTE(app, "/api/recipes/types/<string>")
     .methods("GET"_method)
-    ([&manager, &createErrorResponse, &createSuccessResponse](const crow::request& req, const std::string& type) {
+    ([&manager, &createErrorResponse, &createSuccessResponse](const crow::request& req, crow::response& res, const std::string& type) {
         try {
             auto recipes = manager.searchByType(type);
 
@@ -275,21 +218,24 @@ int main() {
             }
             data["recipes"] = std::move(recipes_json);
 
-            return createSuccessResponse(data);
+            res = createSuccessResponse(data);
         } catch (const std::exception& e) {
-            return createErrorResponse(std::string("Failed to get recipes by type: ") + e.what(), 500);
+            res = createErrorResponse(std::string("Failed to get recipes by type: ") + e.what(), 500);
         }
+        res.end();
     });
 
     // POST /api/recipes - Add a new recipe
     CROW_ROUTE(app, "/api/recipes")
     .methods("POST"_method)
-    ([&manager, &createErrorResponse, &createSuccessResponse](const crow::request& req) {
+    ([&manager, &createErrorResponse, &createSuccessResponse](const crow::request& req, crow::response& res) {
         try {
             auto json_body = crow::json::load(req.body);
 
             if (!json_body) {
-                return createErrorResponse("Invalid JSON body", 400);
+                res = createErrorResponse("Invalid JSON body", 400);
+                res.end();
+                return;
             }
 
             // Extract recipe data from JSON
@@ -305,32 +251,35 @@ int main() {
             recipe newRecipe(title, ingredients, instructions, servingSize, cookTime, category, type);
 
             // Add to database
-            auto result = manager.addRecipe(newRecipe);
+            bool success = manager.addRecipe(newRecipe);
 
-            if (result.success) {
+            if (success) {
                 crow::json::wvalue data;
                 data["message"] = "Recipe added successfully";
                 data["title"] = title;
-                return createSuccessResponse(data);
+                res = createSuccessResponse(data);
             } else {
-                return createErrorResponse(result.errorMessage, 400);
+                res = createErrorResponse("Failed to add recipe to database", 500);
             }
         } catch (const recipe::ValidationError& e) {
-            return createErrorResponse(std::string("Validation error: ") + e.what(), 400);
+            res = createErrorResponse(std::string("Validation error: ") + e.what(), 400);
         } catch (const std::exception& e) {
-            return createErrorResponse(std::string("Failed to add recipe: ") + e.what(), 500);
+            res = createErrorResponse(std::string("Failed to add recipe: ") + e.what(), 500);
         }
+        res.end();
     });
 
     // PUT /api/recipes/<string> - Update a recipe
     CROW_ROUTE(app, "/api/recipes/<string>")
     .methods("PUT"_method)
-    ([&manager, &createErrorResponse, &createSuccessResponse](const crow::request& req, const std::string& title) {
+    ([&manager, &createErrorResponse, &createSuccessResponse](const crow::request& req, crow::response& res, const std::string& title) {
         try {
             auto json_body = crow::json::load(req.body);
 
             if (!json_body) {
-                return createErrorResponse("Invalid JSON body", 400);
+                res = createErrorResponse("Invalid JSON body", 400);
+                res.end();
+                return;
             }
 
             // Extract updated recipe data from JSON
@@ -346,70 +295,69 @@ int main() {
             recipe updatedRecipe(newTitle, ingredients, instructions, servingSize, cookTime, category, type);
 
             // Update in database
-            auto result = manager.updateRecipe(title, updatedRecipe);
+            bool success = manager.updateRecipe(title, updatedRecipe);
 
-            if (result.success) {
+            if (success) {
                 crow::json::wvalue data;
                 data["message"] = "Recipe updated successfully";
                 data["oldTitle"] = title;
                 data["newTitle"] = newTitle;
-                return createSuccessResponse(data);
+                res = createSuccessResponse(data);
             } else {
-                return createErrorResponse(result.errorMessage, 404);
+                res = createErrorResponse("Recipe not found or update failed", 404);
             }
         } catch (const recipe::ValidationError& e) {
-            return createErrorResponse(std::string("Validation error: ") + e.what(), 400);
+            res = createErrorResponse(std::string("Validation error: ") + e.what(), 400);
         } catch (const std::exception& e) {
-            return createErrorResponse(std::string("Failed to update recipe: ") + e.what(), 500);
+            res = createErrorResponse(std::string("Failed to update recipe: ") + e.what(), 500);
         }
+        res.end();
     });
 
     // DELETE /api/recipes/<string> - Delete a recipe
     CROW_ROUTE(app, "/api/recipes/<string>")
     .methods("DELETE"_method)
-    ([&manager, &createErrorResponse, &createSuccessResponse](const crow::request& req, const std::string& title) {
+    ([&manager, &createErrorResponse, &createSuccessResponse](const crow::request& req, crow::response& res, const std::string& title) {
         try {
-            auto result = manager.deleteRecipe(title);
+            bool success = manager.deleteRecipe(title);
 
-            if (result.success) {
+            if (success) {
                 crow::json::wvalue data;
                 data["message"] = "Recipe deleted successfully";
                 data["title"] = title;
-                return createSuccessResponse(data);
+                res = createSuccessResponse(data);
             } else {
-                return createErrorResponse(result.errorMessage, 404);
+                res = createErrorResponse("Recipe not found or delete failed", 404);
             }
         } catch (const std::exception& e) {
-            return createErrorResponse(std::string("Failed to delete recipe: ") + e.what(), 500);
+            res = createErrorResponse(std::string("Failed to delete recipe: ") + e.what(), 500);
         }
+        res.end();
     });
 
-    // GET /api/health - Health check endpoint
-    CROW_ROUTE(app, "/api/health")
-    ([&manager, &createErrorResponse, &createSuccessResponse]() {
-        crow::json::wvalue data;
-        data["status"] = "healthy";
-        data["database_connected"] = manager.isConnected();
-        data["timestamp"] = std::time(nullptr);
-        return createSuccessResponse(data);
-    });
 
     // POST /api/recipes/generate - Generate recipe using AI
     CROW_ROUTE(app, "/api/recipes/generate")
     .methods("POST"_method)
-    ([&aiService, &createErrorResponse, &createSuccessResponse](const crow::request& req) {
+    ([&aiService, &createErrorResponse, &createSuccessResponse](const crow::request& req, crow::response& res) {
         if (!aiService) {
-            return createErrorResponse("AI service not configured. Please set Azure OpenAI environment variables.", 503);
+            res = createErrorResponse("AI service not configured. Please set Azure OpenAI environment variables.", 503);
+            res.end();
+            return;
         }
 
         try {
             auto json_body = crow::json::load(req.body);
             if (!json_body) {
-                return createErrorResponse("Invalid JSON in request body", 400);
+                res = createErrorResponse("Invalid JSON in request body", 400);
+                res.end();
+                return;
             }
 
             if (!json_body.has("prompt")) {
-                return createErrorResponse("Missing 'prompt' field in request body", 400);
+                res = createErrorResponse("Missing 'prompt' field in request body", 400);
+                res.end();
+                return;
             }
 
             std::string prompt = json_body["prompt"].s();
@@ -418,7 +366,9 @@ int main() {
             if (json_body.has("count")) {
                 count = json_body["count"].i();
                 if (count < 1 || count > 5) {
-                    return createErrorResponse("Count must be between 1 and 5", 400);
+                    res = createErrorResponse("Count must be between 1 and 5", 400);
+                    res.end();
+                    return;
                 }
             }
 
@@ -427,13 +377,13 @@ int main() {
                 auto result = aiService->generateRecipe(prompt);
 
                 if (!result.success) {
-                    return createErrorResponse(result.errorMessage, 500);
+                    res = createErrorResponse(result.errorMessage, 500);
+                } else {
+                    crow::json::wvalue data;
+                    data["generatedRecipe"] = result.generatedContent;
+                    data["tokenCount"] = result.tokenCount;
+                    res = createSuccessResponse(data);
                 }
-
-                crow::json::wvalue data;
-                data["generatedRecipe"] = result.generatedContent;
-                data["tokenCount"] = result.tokenCount;
-                return createSuccessResponse(data);
             } else {
                 // Generate multiple recipe suggestions
                 auto results = aiService->generateRecipeSuggestions(prompt, count);
@@ -454,18 +404,19 @@ int main() {
                 }
 
                 data["suggestions"] = std::move(suggestions);
-                return createSuccessResponse(data);
+                res = createSuccessResponse(data);
             }
 
         } catch (const std::exception& e) {
-            return createErrorResponse("Unexpected error: " + std::string(e.what()), 500);
+            res = createErrorResponse("Unexpected error: " + std::string(e.what()), 500);
         }
+        res.end();
     });
 
     // GET /api/ai/status - Check AI service status
     CROW_ROUTE(app, "/api/ai/status")
     .methods("GET"_method)
-    ([&aiService, &createSuccessResponse, &createErrorResponse]() {
+    ([&aiService, &createSuccessResponse, &createErrorResponse](const crow::request& req, crow::response& res) {
         crow::json::wvalue data;
         data["aiServiceConfigured"] = (aiService != nullptr);
 
@@ -476,7 +427,8 @@ int main() {
             data["configurationHelp"] = "Set AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_KEY, and AZURE_OPENAI_DEPLOYMENT environment variables";
         }
 
-        return createSuccessResponse(data);
+        res = createSuccessResponse(data);
+        res.end();
     });
 
     // Serve static files (for frontend)

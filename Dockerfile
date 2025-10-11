@@ -27,6 +27,7 @@ RUN cd /vcpkg && \
     mongo-cxx-driver \
     azure-core-cpp \
     nlohmann-json \
+    crow \
     utf8proc \
     zlib \
     --triplet x64-linux

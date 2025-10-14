@@ -150,13 +150,7 @@
   margin-top: 15px;
 }
 
-<<<<<<< HEAD
 .view-button, .edit-button, .delete-button {
-=======
-
-.view-button, .edit-button, .delete-button {
-.edit-button, .delete-button {
->>>>>>> f23e8b19d0963d3fbc936a49cb1e690b0f7e2df4
   padding: 8px 16px;
   border: none;
   border-radius: 6px;
@@ -450,7 +444,8 @@ textarea {
 .ai-generate-button:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-=======
+}
+
 /* Recipe Details Modal Styles */
 .recipe-details-overlay {
   position: fixed;
@@ -603,5 +598,4 @@ textarea {
 
 .close-button-secondary:hover {
   background: #5a6268;
->>>>>>> f23e8b19d0963d3fbc936a49cb1e690b0f7e2df4
 }

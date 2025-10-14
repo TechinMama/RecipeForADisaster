@@ -9,13 +9,6 @@ interface RecipeListProps {
 }
 
 const RecipeList: React.FC<RecipeListProps> = ({ onEdit, onView, refreshTrigger }) => {
-<<<<<<< HEAD
-=======
-  refreshTrigger: number;
-}
-
-const RecipeList: React.FC<RecipeListProps> = ({ onEdit, refreshTrigger }) => {
->>>>>>> f23e8b19d0963d3fbc936a49cb1e690b0f7e2df4
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -26,10 +19,6 @@ const RecipeList: React.FC<RecipeListProps> = ({ onEdit, refreshTrigger }) => {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [currentPage, setCurrentPage] = useState(1);
   const recipesPerPage = 6;
-<<<<<<< HEAD
-=======
-=======
->>>>>>> f23e8b19d0963d3fbc936a49cb1e690b0f7e2df4
 
   const loadRecipes = useCallback(async () => {
     try {

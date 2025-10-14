@@ -325,156 +325,122 @@ textarea {
   border: 1px solid #f5c6cb;
 }
 
-/* Recipe Details Modal Styles */
-.recipe-details-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 20px;
-}
-
-.recipe-details-modal {
+/* AI Generation Styles */
+.ai-generation {
+  max-width: 600px;
+  margin: 0 auto;
   background: white;
+  padding: 30px;
   border-radius: 12px;
-  max-width: 800px;
-  width: 100%;
-  max-height: 90vh;
-  overflow-y: auto;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
 }
 
-.recipe-details-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px 30px;
-  border-bottom: 1px solid #e9ecef;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border-radius: 12px 12px 0 0;
-}
-
-.recipe-details-header h2 {
-  margin: 0;
+.ai-generation h2 {
+  color: #333;
+  text-align: center;
+  margin-bottom: 20px;
   font-size: 1.8rem;
 }
 
-.close-button {
-  background: none;
-  border: none;
-  font-size: 28px;
-  cursor: pointer;
-  color: white;
-  padding: 0;
-  width: 30px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  transition: background-color 0.3s;
-}
-
-.close-button:hover {
-  background: rgba(255, 255, 255, 0.2);
-}
-
-.recipe-details-content {
-  padding: 30px;
-}
-
-.recipe-details-meta {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 15px;
+.ai-status {
   margin-bottom: 30px;
   padding: 20px;
-  background: #f8f9fa;
   border-radius: 8px;
+  border-left: 4px solid;
 }
 
-.meta-item {
-  font-size: 16px;
+.ai-status.configured {
+  background: #d4edda;
+  border-left-color: #28a745;
 }
 
-.meta-item strong {
-  color: #495057;
+.ai-status.not-configured {
+  background: #f8d7da;
+  border-left-color: #dc3545;
 }
 
-.recipe-details-section {
-  margin-bottom: 30px;
-}
-
-.recipe-details-section h3 {
+.ai-status h3 {
+  margin: 0 0 10px 0;
   color: #333;
-  margin-bottom: 15px;
-  font-size: 1.4rem;
-  border-bottom: 2px solid #667eea;
-  padding-bottom: 5px;
 }
 
-.ingredients-list {
-  background: #f8f9fa;
-  padding: 20px;
-  border-radius: 8px;
-  border-left: 4px solid #28a745;
+.ai-status p {
+  margin: 5px 0;
 }
 
-.ingredient-item {
-  margin-bottom: 8px;
-  line-height: 1.5;
-  color: #495057;
+.status-help {
+  font-size: 0.9rem;
+  font-style: italic;
+  color: #721c24;
 }
 
-.instructions-content {
-  background: #f8f9fa;
-  padding: 20px;
-  border-radius: 8px;
-  border-left: 4px solid #007bff;
-}
-
-.instruction-step {
+.ai-form {
   display: flex;
-  margin-bottom: 12px;
-  line-height: 1.6;
-  color: #495057;
+  flex-direction: column;
+  gap: 20px;
 }
 
-.step-number {
-  font-weight: bold;
-  color: #007bff;
-  margin-right: 10px;
-  min-width: 25px;
+.generate-button {
+  padding: 15px 30px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  transition: transform 0.2s, box-shadow 0.2s;
 }
 
-.recipe-details-actions {
-  padding: 20px 30px;
-  border-top: 1px solid #e9ecef;
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  background: #f8f9fa;
-  border-radius: 0 0 12px 12px;
+.generate-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
-.close-button-secondary {
+.generate-button:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.ai-help {
+  text-align: center;
+  color: #6c757d;
+  font-size: 0.9rem;
+  margin-top: 10px;
+}
+
+/* Back Button Styles */
+.back-button {
   background: #6c757d;
   color: white;
   border: none;
-  padding: 10px 20px;
+  padding: 8px 16px;
   border-radius: 6px;
   cursor: pointer;
-  font-size: 16px;
+  font-size: 14px;
   transition: background-color 0.3s;
 }
 
-.close-button-secondary:hover {
+.back-button:hover {
   background: #5a6268;
+}
+
+/* AI Generate Button */
+.ai-generate-button {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.ai-generate-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }

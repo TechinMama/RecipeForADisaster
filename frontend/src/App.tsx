@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import RecipeList from './components/RecipeList';
 import RecipeForm from './components/RecipeForm';
 import RecipeDetails from './components/RecipeDetails';
+import AIGeneration from './components/AIGeneration';
 import { Recipe } from './types/Recipe';
 import './App.css';
 
 function App() {
-  const [currentView, setCurrentView] = useState<'list' | 'form' | 'details'>('list');
+  const [currentView, setCurrentView] = useState<'list' | 'form' | 'details' | 'ai'>('list');
   const [editingRecipe, setEditingRecipe] = useState<Recipe | undefined>();
   const [viewingRecipe, setViewingRecipe] = useState<Recipe | undefined>();
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -14,6 +15,10 @@ function App() {
   const handleAddRecipe = () => {
     setEditingRecipe(undefined);
     setCurrentView('form');
+  };
+
+  const handleAIGeneration = () => {
+    setCurrentView('ai');
   };
 
   const handleEditRecipe = (recipe: Recipe) => {
@@ -63,6 +68,9 @@ function App() {
               <button onClick={handleAddRecipe} className="add-recipe-button">
                 Add New Recipe
               </button>
+              <button onClick={handleAIGeneration} className="ai-generate-button">
+                Generate with AI
+              </button>
             </div>
             <RecipeList
               onEdit={handleEditRecipe}
@@ -76,6 +84,8 @@ function App() {
             onSave={handleSaveRecipe}
             onCancel={handleCancelForm}
           />
+        ) : currentView === 'ai' ? (
+          <AIGeneration onBack={() => setCurrentView('list')} />
         ) : (
           viewingRecipe && (
             <RecipeDetails

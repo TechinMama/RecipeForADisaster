@@ -78,6 +78,16 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(nlohmann_json)
 
+# Add Google Test for unit testing
+FetchContent_Declare(
+  googletest
+  GIT_REPOSITORY https://github.com/google/googletest.git
+  GIT_TAG v1.14.0
+)
+# Prevent overriding the parent project's compiler/linker on Windows
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googletest)
+
 # Add HashiCorp Vault C++ client
 # Using a simple HTTP-based implementation instead of external library
 
@@ -118,12 +128,23 @@ add_executable(integration_tests tests/test_integration.cpp src/recipe.cpp src/r
 add_executable(ai_service_tests tests/test_ai_service.cpp src/recipe.cpp src/recipeManagerSQLite.cpp src/aiService.cpp src/vaultService.cpp src/common_utils.cpp)
 add_executable(vault_tests tests/test_vault.cpp src/vaultService.cpp src/common_utils.cpp)
 
+# Create unit tests with Google Test
+add_executable(unit_tests 
+    tests/test_recipe.cpp 
+    tests/test_recipe_manager.cpp 
+    src/recipe.cpp 
+    src/recipeManagerSQLite.cpp 
+    src/vaultService.cpp 
+    src/common_utils.cpp
+)
+
 # Link libraries
 target_link_libraries(RecipeForADisaster ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json)
 target_link_libraries(web_server ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json Crow::Crow)
 target_link_libraries(integration_tests ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json)
 target_link_libraries(ai_service_tests ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json)
 target_link_libraries(vault_tests CURL::libcurl nlohmann_json::nlohmann_json)
+target_link_libraries(unit_tests ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json GTest::gtest_main)
 
 # Test executable needs the same include directories
 target_include_directories(integration_tests PRIVATE include)
@@ -146,6 +167,7 @@ target_include_directories(vault_tests PRIVATE ${CMAKE_BINARY_DIR}/_deps/nlohman
 add_test(NAME IntegrationTests COMMAND integration_tests)
 add_test(NAME AIServiceTests COMMAND ai_service_tests)
 add_test(NAME VaultTests COMMAND vault_tests)
+add_test(NAME UnitTests COMMAND unit_tests)
 
 # Optional: Add a custom target to run tests
 add_custom_target(run_tests

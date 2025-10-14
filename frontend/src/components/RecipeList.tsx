@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Recipe } from '../types/Recipe';
 import { recipeApi } from '../services/api';
 
@@ -15,7 +15,7 @@ const RecipeList: React.FC<RecipeListProps> = ({ onEdit, refreshTrigger }) => {
   const [categoryFilter, setCategoryFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
 
-  const loadRecipes = async () => {
+  const loadRecipes = useCallback(async () => {
     try {
       setLoading(true);
       let data: Recipe[];
@@ -38,11 +38,11 @@ const RecipeList: React.FC<RecipeListProps> = ({ onEdit, refreshTrigger }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [searchQuery, categoryFilter, typeFilter]);
 
   useEffect(() => {
     loadRecipes();
-  }, [searchQuery, categoryFilter, typeFilter, refreshTrigger]);
+  }, [loadRecipes, refreshTrigger]);
 
   const handleDelete = async (title: string) => {
     if (window.confirm(`Are you sure you want to delete "${title}"?`)) {

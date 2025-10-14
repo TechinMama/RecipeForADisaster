@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Recipe, ApiResponse } from '../types/Recipe';
+import { Recipe } from '../types/Recipe';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080/api';
 

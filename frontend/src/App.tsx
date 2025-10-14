@@ -1,10 +1,15 @@
 import React, { useState } from 'react';
 import RecipeList from './components/RecipeList';
 import RecipeForm from './components/RecipeForm';
+import RecipeDetails from './components/RecipeDetails';
 import { Recipe } from './types/Recipe';
 import './App.css';
 
 function App() {
+  const [currentView, setCurrentView] = useState<'list' | 'form' | 'details'>('list');
+  const [editingRecipe, setEditingRecipe] = useState<Recipe | undefined>();
+  const [viewingRecipe, setViewingRecipe] = useState<Recipe | undefined>();
+=======
   const [currentView, setCurrentView] = useState<'list' | 'form'>('list');
   const [editingRecipe, setEditingRecipe] = useState<Recipe | undefined>();
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -19,6 +24,11 @@ function App() {
     setCurrentView('form');
   };
 
+  const handleViewRecipe = (recipe: Recipe) => {
+    setViewingRecipe(recipe);
+    setCurrentView('details');
+  };
+
   const handleSaveRecipe = () => {
     setCurrentView('list');
     setRefreshTrigger(prev => prev + 1); // Trigger refresh of recipe list
@@ -27,6 +37,19 @@ function App() {
   const handleCancelForm = () => {
     setCurrentView('list');
     setEditingRecipe(undefined);
+  };
+
+  const handleCloseDetails = () => {
+    setCurrentView('list');
+    setViewingRecipe(undefined);
+  };
+
+  const handleEditFromDetails = () => {
+    if (viewingRecipe) {
+      setEditingRecipe(viewingRecipe);
+      setViewingRecipe(undefined);
+      setCurrentView('form');
+    }
   };
 
   return (
@@ -46,6 +69,11 @@ function App() {
             </div>
             <RecipeList
               onEdit={handleEditRecipe}
+              onView={handleViewRecipe}
+              refreshTrigger={refreshTrigger}
+            />
+          </div>
+        ) : currentView === 'form' ? (
               refreshTrigger={refreshTrigger}
             />
           </div>
@@ -55,6 +83,15 @@ function App() {
             onSave={handleSaveRecipe}
             onCancel={handleCancelForm}
           />
+        ) : (
+          viewingRecipe && (
+            <RecipeDetails
+              recipe={viewingRecipe}
+              onClose={handleCloseDetails}
+              onEdit={handleEditFromDetails}
+            />
+          )
+
         )}
       </main>
 

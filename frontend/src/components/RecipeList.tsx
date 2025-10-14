@@ -4,6 +4,11 @@ import { recipeApi } from '../services/api';
 
 interface RecipeListProps {
   onEdit: (recipe: Recipe) => void;
+  onView: (recipe: Recipe) => void;
+  refreshTrigger: number;
+}
+
+const RecipeList: React.FC<RecipeListProps> = ({ onEdit, onView, refreshTrigger }) => {
   refreshTrigger: number;
 }
 
@@ -14,6 +19,11 @@ const RecipeList: React.FC<RecipeListProps> = ({ onEdit, refreshTrigger }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
+  const [sortBy, setSortBy] = useState<'title' | 'category' | 'type' | 'cookTime'>('title');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const recipesPerPage = 6;
+=======
 
   const loadRecipes = useCallback(async () => {
     try {
@@ -40,6 +50,48 @@ const RecipeList: React.FC<RecipeListProps> = ({ onEdit, refreshTrigger }) => {
     }
   }, [searchQuery, categoryFilter, typeFilter]);
 
+  // Sort and paginate recipes
+  const sortedRecipes = React.useMemo(() => {
+    const sorted = [...recipes].sort((a, b) => {
+      let aValue: string;
+      let bValue: string;
+
+      switch (sortBy) {
+        case 'title':
+          aValue = a.title.toLowerCase();
+          bValue = b.title.toLowerCase();
+          break;
+        case 'category':
+          aValue = a.category.toLowerCase();
+          bValue = b.category.toLowerCase();
+          break;
+        case 'type':
+          aValue = a.type.toLowerCase();
+          bValue = b.type.toLowerCase();
+          break;
+        case 'cookTime':
+          aValue = a.cookTime.toLowerCase();
+          bValue = b.cookTime.toLowerCase();
+          break;
+        default:
+          return 0;
+      }
+
+      if (sortOrder === 'asc') {
+        return aValue.localeCompare(bValue);
+      } else {
+        return bValue.localeCompare(aValue);
+      }
+    });
+
+    // Pagination
+    const startIndex = (currentPage - 1) * recipesPerPage;
+    const endIndex = startIndex + recipesPerPage;
+    return sorted.slice(startIndex, endIndex);
+  }, [recipes, sortBy, sortOrder, currentPage]);
+
+  const totalPages = Math.ceil(recipes.length / recipesPerPage);
+
   useEffect(() => {
     loadRecipes();
   }, [loadRecipes, refreshTrigger]);
@@ -60,6 +112,9 @@ const RecipeList: React.FC<RecipeListProps> = ({ onEdit, refreshTrigger }) => {
     setSearchQuery('');
     setCategoryFilter('');
     setTypeFilter('');
+    setSortBy('title');
+    setSortOrder('asc');
+    setCurrentPage(1);
   };
 
   if (loading) return <div className="loading">Loading recipes...</div>;
@@ -98,11 +153,29 @@ const RecipeList: React.FC<RecipeListProps> = ({ onEdit, refreshTrigger }) => {
           <option value="Dessert">Dessert</option>
           <option value="Beverage">Beverage</option>
         </select>
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value as 'title' | 'category' | 'type' | 'cookTime')}
+          className="filter-select"
+        >
+          <option value="title">Sort by Title</option>
+          <option value="category">Sort by Category</option>
+          <option value="type">Sort by Type</option>
+          <option value="cookTime">Sort by Cook Time</option>
+        </select>
+        <select
+          value={sortOrder}
+          onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
+          className="filter-select"
+        >
+          <option value="asc">Ascending</option>
+          <option value="desc">Descending</option>
+        </select>
         <button onClick={clearFilters} className="clear-button">Clear Filters</button>
       </div>
 
       <div className="recipes-grid">
-        {recipes.map((recipe, index) => (
+        {sortedRecipes.map((recipe, index) => (
           <div key={index} className="recipe-card">
             <h3>{recipe.title}</h3>
             <div className="recipe-meta">
@@ -116,6 +189,7 @@ const RecipeList: React.FC<RecipeListProps> = ({ onEdit, refreshTrigger }) => {
               <p><strong>Serving Size:</strong> {recipe.servingSize}</p>
             </div>
             <div className="recipe-actions">
+              <button onClick={() => onView(recipe)} className="view-button">View</button>
               <button onClick={() => onEdit(recipe)} className="edit-button">Edit</button>
               <button onClick={() => handleDelete(recipe.title)} className="delete-button">Delete</button>
             </div>
@@ -125,6 +199,30 @@ const RecipeList: React.FC<RecipeListProps> = ({ onEdit, refreshTrigger }) => {
 
       {recipes.length === 0 && (
         <div className="no-recipes">No recipes found. Try adjusting your filters or add a new recipe.</div>
+      )}
+
+      {totalPages > 1 && (
+        <div className="pagination">
+          <button
+            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+            disabled={currentPage === 1}
+            className="page-button"
+          >
+            Previous
+          </button>
+
+          <span className="page-info">
+            Page {currentPage} of {totalPages} ({recipes.length} total recipes)
+          </span>
+
+          <button
+            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+            disabled={currentPage === totalPages}
+            className="page-button"
+          >
+            Next
+          </button>
+        </div>
       )}
     </div>
   );

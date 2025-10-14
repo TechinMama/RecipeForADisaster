@@ -9,6 +9,9 @@ function App() {
   const [currentView, setCurrentView] = useState<'list' | 'form' | 'details'>('list');
   const [editingRecipe, setEditingRecipe] = useState<Recipe | undefined>();
   const [viewingRecipe, setViewingRecipe] = useState<Recipe | undefined>();
+=======
+  const [currentView, setCurrentView] = useState<'list' | 'form'>('list');
+  const [editingRecipe, setEditingRecipe] = useState<Recipe | undefined>();
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const handleAddRecipe = () => {
@@ -71,6 +74,10 @@ function App() {
             />
           </div>
         ) : currentView === 'form' ? (
+              refreshTrigger={refreshTrigger}
+            />
+          </div>
+        ) : (
           <RecipeForm
             recipe={editingRecipe}
             onSave={handleSaveRecipe}
@@ -84,6 +91,7 @@ function App() {
               onEdit={handleEditFromDetails}
             />
           )
+
         )}
       </main>
 

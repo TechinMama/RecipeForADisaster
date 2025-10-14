@@ -150,7 +150,9 @@
   margin-top: 15px;
 }
 
+
 .view-button, .edit-button, .delete-button {
+.edit-button, .delete-button {
   padding: 8px 16px;
   border: none;
   border-radius: 6px;

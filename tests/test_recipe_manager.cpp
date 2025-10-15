@@ -6,9 +6,13 @@
 // Test fixture for RecipeManager tests
 class RecipeManagerTest : public ::testing::Test {
 protected:
-    std::string testDbPath = "/tmp/test_recipes.db";
+    std::string testDbPath;
 
     void SetUp() override {
+        // Use cross-platform temporary directory
+        std::filesystem::path tempDir = std::filesystem::temp_directory_path();
+        testDbPath = (tempDir / "test_recipes.db").string();
+
         // Remove test database if it exists
         if (std::filesystem::exists(testDbPath)) {
             std::filesystem::remove(testDbPath);

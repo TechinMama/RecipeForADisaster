@@ -150,9 +150,7 @@
   margin-top: 15px;
 }
 
-
 .view-button, .edit-button, .delete-button {
-.edit-button, .delete-button {
   padding: 8px 16px;
   border: none;
   border-radius: 6px;
@@ -325,6 +323,127 @@ textarea {
   border-radius: 4px;
   margin-bottom: 20px;
   border: 1px solid #f5c6cb;
+}
+
+<<<<<<< HEAD
+/* AI Generation Styles */
+.ai-generation {
+  max-width: 600px;
+  margin: 0 auto;
+  background: white;
+  padding: 30px;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.ai-generation h2 {
+  color: #333;
+  text-align: center;
+  margin-bottom: 20px;
+  font-size: 1.8rem;
+}
+
+.ai-status {
+  margin-bottom: 30px;
+  padding: 20px;
+  border-radius: 8px;
+  border-left: 4px solid;
+}
+
+.ai-status.configured {
+  background: #d4edda;
+  border-left-color: #28a745;
+}
+
+.ai-status.not-configured {
+  background: #f8d7da;
+  border-left-color: #dc3545;
+}
+
+.ai-status h3 {
+  margin: 0 0 10px 0;
+  color: #333;
+}
+
+.ai-status p {
+  margin: 5px 0;
+}
+
+.status-help {
+  font-size: 0.9rem;
+  font-style: italic;
+  color: #721c24;
+}
+
+.ai-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.generate-button {
+  padding: 15px 30px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.generate-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.generate-button:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.ai-help {
+  text-align: center;
+  color: #6c757d;
+  font-size: 0.9rem;
+  margin-top: 10px;
+}
+
+/* Back Button Styles */
+.back-button {
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.3s;
+}
+
+.back-button:hover {
+  background: #5a6268;
+}
+
+/* AI Generate Button */
+.ai-generate-button {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.ai-generate-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
 /* Recipe Details Modal Styles */

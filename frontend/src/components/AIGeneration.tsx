@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { recipeApi } from '../services/api';
 import PromptBuilder from './PromptBuilder';
+import RecipePreview from './RecipePreview';
 import { PROMPT_EXAMPLES } from '../data/promptTemplates';
+import { Recipe } from '../types/Recipe';
 
 interface AIGenerationProps {
   onRecipeGenerated?: (recipe: any) => void;
@@ -15,6 +17,8 @@ const AIGeneration: React.FC<AIGenerationProps> = ({ onRecipeGenerated, onBack }
   const [error, setError] = useState<string | null>(null);
   const [aiStatus, setAiStatus] = useState<any>(null);
   const [generationProgress, setGenerationProgress] = useState<string>('');
+  const [generatedRecipe, setGeneratedRecipe] = useState<Partial<Recipe> | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
 
   const progressMessages = [
     'Analyzing your recipe request...',
@@ -67,16 +71,18 @@ const AIGeneration: React.FC<AIGenerationProps> = ({ onRecipeGenerated, onBack }
         // Small delay to show completion message
         setTimeout(() => {
           if (count === 1) {
-            // Single recipe - parse and create recipe object
+            // Single recipe - parse and show preview
             const generatedRecipe = parseGeneratedRecipe(result.data.generatedRecipe);
-            onRecipeGenerated?.(generatedRecipe);
+            setGeneratedRecipe(generatedRecipe);
+            setShowPreview(true);
           } else {
             // Multiple suggestions - show first one or let user choose
             if (result.data.suggestions && result.data.suggestions.length > 0) {
               const firstSuggestion = result.data.suggestions[0];
               if (firstSuggestion.success) {
                 const generatedRecipe = parseGeneratedRecipe(firstSuggestion.content);
-                onRecipeGenerated?.(generatedRecipe);
+                setGeneratedRecipe(generatedRecipe);
+                setShowPreview(true);
               } else {
                 setError(firstSuggestion.error || 'Failed to generate recipe');
               }
@@ -152,6 +158,35 @@ const AIGeneration: React.FC<AIGenerationProps> = ({ onRecipeGenerated, onBack }
       cookTime,
     };
   };
+
+  const handleSaveRecipe = (recipe: Recipe) => {
+    onRecipeGenerated?.(recipe);
+    setShowPreview(false);
+    setGeneratedRecipe(null);
+    setPrompt(''); // Reset form
+  };
+
+  const handleEditRecipe = () => {
+    // RecipePreview handles its own editing state
+  };
+
+  const handleCancelPreview = () => {
+    setShowPreview(false);
+    setGeneratedRecipe(null);
+  };
+
+  if (showPreview && generatedRecipe) {
+    return (
+      <div className="ai-generation">
+        <RecipePreview
+          recipe={generatedRecipe}
+          onSave={handleSaveRecipe}
+          onEdit={handleEditRecipe}
+          onCancel={handleCancelPreview}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="ai-generation">

@@ -3,7 +3,7 @@
 
 #include <string>
 #include <memory>
-#include <curl/curl.h>
+#include "vault_client.hpp"
 
 class VaultService {
 public:
@@ -30,11 +30,8 @@ public:
 
 private:
     VaultConfig config_;
-    CURL* curl_;
+    std::unique_ptr<VaultClient> vault_client_;
     bool connected_;
-
-    // Helper method to make HTTP requests to Vault
-    std::string makeVaultRequest(const std::string& endpoint);
 };
 
 #endif // VAULT_SERVICE_H

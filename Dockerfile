@@ -23,8 +23,6 @@ RUN cd /vcpkg && \
     boost-date-time \
     curl \
     openssl \
-    mongo-c-driver \
-    mongo-cxx-driver \
     azure-core-cpp \
     nlohmann-json \
     crow \

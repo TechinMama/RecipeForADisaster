@@ -32,14 +32,6 @@ int main() {
             std::cout << "⚠ Test secret retrieval failed (expected if test secret doesn't exist): " << result.errorMessage << std::endl;
         }
 
-        // Test MongoDB credential retrieval
-        auto mongoResult = vaultService.getSecret("database/mongodb", "uri");
-        if (mongoResult.success) {
-            std::cout << "✓ MongoDB URI retrieved from Vault successfully" << std::endl;
-        } else {
-            std::cout << "⚠ MongoDB URI retrieval failed: " << mongoResult.errorMessage << std::endl;
-        }
-
         // Test Azure OpenAI credential retrieval
         auto aiResult = vaultService.getSecret("azure-openai", "endpoint");
         if (aiResult.success) {

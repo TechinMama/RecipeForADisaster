@@ -95,13 +95,12 @@ FetchContent_MakeAvailable(googletest)
 # Add Azure SDK for C++ (keeping core for potential future use)
 # Azure SDK is now handled via vcpkg on Windows, FetchContent on other platforms
 
-# Find SQLite3 (much simpler than MongoDB!)
+# Find SQLite3
 # CMAKE_PREFIX_PATH is set at the top of the file
 
 message(STATUS "VCPKG_ROOT: $ENV{VCPKG_ROOT}")
 message(STATUS "CMAKE_PREFIX_PATH: ${CMAKE_PREFIX_PATH}")
 
-# Find SQLite3 (much simpler than MongoDB!)
 find_package(SQLite3 REQUIRED)
 
 if(SQLite3_FOUND)
@@ -112,10 +111,8 @@ else()
     message(FATAL_ERROR "SQLite3 not found")
 endif()
 
-# Main application sources (SQLite version)
+# Main application sources
 file(GLOB SOURCES "src/*.cpp")
-list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp")  # Remove MongoDB main
-list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/recipeManager.cpp")  # Remove MongoDB manager
 
 # Create main executable (SQLite version)
 add_executable(RecipeForADisaster src/main_sqlite.cpp src/recipeManagerSQLite.cpp src/recipe.cpp src/aiService.cpp src/vaultService.cpp src/vault_client.cpp src/common_utils.cpp)
@@ -135,16 +132,7 @@ add_executable(unit_tests
     src/recipe.cpp 
     src/recipeManagerSQLite.cpp 
     src/vaultService.cpp 
-    src/common_utils.cpp
-)
-
-# Create unit tests with Google Test
-add_executable(unit_tests 
-    tests/test_recipe.cpp 
-    tests/test_recipe_manager.cpp 
-    src/recipe.cpp 
-    src/recipeManagerSQLite.cpp 
-    src/vaultService.cpp 
+    src/vault_client.cpp
     src/common_utils.cpp
 )
 

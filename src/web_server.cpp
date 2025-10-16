@@ -43,27 +43,66 @@ int main() {
 
     // Initialize AI service (optional - will be null if not configured)
     std::unique_ptr<AIService> aiService = nullptr;
+    std::unique_ptr<VaultService> vaultService = nullptr;
 
-    // Fallback to environment variables
-    const char* azureEndpoint = std::getenv("AZURE_OPENAI_ENDPOINT");
-    const char* azureApiKey = std::getenv("AZURE_OPENAI_KEY");
-    const char* azureDeployment = std::getenv("AZURE_OPENAI_DEPLOYMENT");
+    // Try to initialize Vault service first
+    const char* vaultAddr = std::getenv("VAULT_ADDR");
+    const char* vaultToken = std::getenv("VAULT_TOKEN");
 
-    if (azureEndpoint && azureApiKey && azureDeployment) {
+    if (vaultAddr && vaultToken) {
         try {
-            aiService = std::make_unique<AIService>(azureEndpoint, azureApiKey, azureDeployment);
-            if (aiService->isConnected()) {
-                std::cout << "Connected to Azure OpenAI successfully!" << std::endl;
-            } else {
-                std::cout << "Warning: Azure OpenAI service initialized but connection test failed." << std::endl;
+            VaultService::VaultConfig vaultConfig;
+            vaultConfig.address = vaultAddr;
+            vaultConfig.token = vaultToken;
+            vaultConfig.mountPath = "secret";
+
+            vaultService = std::make_unique<VaultService>(vaultConfig);
+            std::cout << "Connected to Vault successfully!" << std::endl;
+
+            // Try to initialize AI service using Vault credentials
+            try {
+                aiService = std::make_unique<AIService>(vaultService.get(), "azure-openai");
+                if (aiService->isConnected()) {
+                    std::cout << "Connected to Azure OpenAI via Vault successfully!" << std::endl;
+                } else {
+                    std::cout << "Warning: Azure OpenAI service initialized via Vault but connection test failed." << std::endl;
+                }
+            } catch (const AIService::AIServiceError& e) {
+                std::cout << "Warning: Failed to initialize Azure OpenAI service via Vault: " << e.what() << std::endl;
+                aiService = nullptr;
             }
-        } catch (const AIService::AIServiceError& e) {
-            std::cout << "Warning: Failed to initialize Azure OpenAI service: " << e.what() << std::endl;
-            aiService = nullptr;
+        } catch (const std::exception& e) {
+            std::cout << "Warning: Failed to initialize Vault service: " << e.what() << std::endl;
+            vaultService = nullptr;
         }
-    } else {
-        std::cout << "Azure OpenAI not configured. Recipe generation features will be unavailable." << std::endl;
-        std::cout << "Set AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_KEY, and AZURE_OPENAI_DEPLOYMENT to enable AI features." << std::endl;
+    }
+
+    // Fallback to environment variables if Vault initialization failed
+    if (!aiService) {
+        const char* azureEndpoint = std::getenv("AZURE_OPENAI_ENDPOINT");
+        const char* azureApiKey = std::getenv("AZURE_OPENAI_KEY");
+        const char* azureDeployment = std::getenv("AZURE_OPENAI_DEPLOYMENT");
+
+        if (azureEndpoint && azureApiKey && azureDeployment) {
+            try {
+                aiService = std::make_unique<AIService>(azureEndpoint, azureApiKey, azureDeployment);
+                if (aiService->isConnected()) {
+                    std::cout << "Connected to Azure OpenAI via environment variables successfully!" << std::endl;
+                } else {
+                    std::cout << "Warning: Azure OpenAI service initialized but connection test failed." << std::endl;
+                }
+            } catch (const AIService::AIServiceError& e) {
+                std::cout << "Warning: Failed to initialize Azure OpenAI service: " << e.what() << std::endl;
+                aiService = nullptr;
+            }
+        } else {
+            std::cout << "Azure OpenAI not configured. Recipe generation features will be unavailable." << std::endl;
+            if (!vaultService) {
+                std::cout << "Set VAULT_ADDR and VAULT_TOKEN to use Vault for credentials, or set AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_KEY, and AZURE_OPENAI_DEPLOYMENT directly." << std::endl;
+            } else {
+                std::cout << "Vault is configured but Azure OpenAI credentials not found in Vault at path 'secret/azure-openai'." << std::endl;
+            }
+        }
     }
 
     // Create Crow app with CORS middleware

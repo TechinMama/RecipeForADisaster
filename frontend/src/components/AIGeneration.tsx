@@ -1,5 +1,9 @@
 import React, { useState } from 'react';
 import { recipeApi } from '../services/api';
+import PromptBuilder from './PromptBuilder';
+import RecipePreview from './RecipePreview';
+import { PROMPT_EXAMPLES } from '../data/promptTemplates';
+import { Recipe } from '../types/Recipe';
 
 interface AIGenerationProps {
   onRecipeGenerated?: (recipe: any) => void;
@@ -12,6 +16,17 @@ const AIGeneration: React.FC<AIGenerationProps> = ({ onRecipeGenerated, onBack }
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [aiStatus, setAiStatus] = useState<any>(null);
+  const [generationProgress, setGenerationProgress] = useState<string>('');
+  const [generatedRecipe, setGeneratedRecipe] = useState<Partial<Recipe> | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+
+  const progressMessages = [
+    'Analyzing your recipe request...',
+    'Consulting culinary experts...',
+    'Crafting the perfect recipe...',
+    'Adding finishing touches...',
+    'Recipe ready!'
+  ];
 
   React.useEffect(() => {
     // Check AI service status on component mount
@@ -29,40 +44,61 @@ const AIGeneration: React.FC<AIGenerationProps> = ({ onRecipeGenerated, onBack }
 
   const handleGenerate = async () => {
     if (!prompt.trim()) {
-      setError('Please enter a recipe description');
+      setError('Please describe your recipe or select a template');
       return;
     }
 
     setLoading(true);
     setError(null);
+    setGenerationProgress(progressMessages[0]);
 
     try {
+      // Simulate progress updates
+      const progressInterval = setInterval(() => {
+        setGenerationProgress(prev => {
+          const currentIndex = progressMessages.indexOf(prev);
+          const nextIndex = Math.min(currentIndex + 1, progressMessages.length - 2);
+          return progressMessages[nextIndex];
+        });
+      }, 1500);
+
       const result = await recipeApi.generateRecipe(prompt, count);
 
+      clearInterval(progressInterval);
+      setGenerationProgress(progressMessages[progressMessages.length - 1]);
+
       if (result.success) {
-        if (count === 1) {
-          // Single recipe - parse and create recipe object
-          const generatedRecipe = parseGeneratedRecipe(result.data.generatedRecipe);
-          onRecipeGenerated?.(generatedRecipe);
-        } else {
-          // Multiple suggestions - show first one or let user choose
-          if (result.data.suggestions && result.data.suggestions.length > 0) {
-            const firstSuggestion = result.data.suggestions[0];
-            if (firstSuggestion.success) {
-              const generatedRecipe = parseGeneratedRecipe(firstSuggestion.content);
-              onRecipeGenerated?.(generatedRecipe);
-            } else {
-              setError(firstSuggestion.error || 'Failed to generate recipe');
+        // Small delay to show completion message
+        setTimeout(() => {
+          if (count === 1) {
+            // Single recipe - parse and show preview
+            const generatedRecipe = parseGeneratedRecipe(result.data.generatedRecipe);
+            setGeneratedRecipe(generatedRecipe);
+            setShowPreview(true);
+          } else {
+            // Multiple suggestions - show first one or let user choose
+            if (result.data.suggestions && result.data.suggestions.length > 0) {
+              const firstSuggestion = result.data.suggestions[0];
+              if (firstSuggestion.success) {
+                const generatedRecipe = parseGeneratedRecipe(firstSuggestion.content);
+                setGeneratedRecipe(generatedRecipe);
+                setShowPreview(true);
+              } else {
+                setError(firstSuggestion.error || 'Failed to generate recipe');
+              }
             }
           }
-        }
+        }, 1000);
       } else {
         setError(result.error || 'Failed to generate recipe');
       }
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to generate recipe');
     } finally {
-      setLoading(false);
+      setTimeout(() => {
+        setLoading(false);
+        setGenerationProgress('');
+      }, 1500);
     }
   };
 
@@ -123,6 +159,35 @@ const AIGeneration: React.FC<AIGenerationProps> = ({ onRecipeGenerated, onBack }
     };
   };
 
+  const handleSaveRecipe = (recipe: Recipe) => {
+    onRecipeGenerated?.(recipe);
+    setShowPreview(false);
+    setGeneratedRecipe(null);
+    setPrompt(''); // Reset form
+  };
+
+  const handleEditRecipe = () => {
+    // RecipePreview handles its own editing state
+  };
+
+  const handleCancelPreview = () => {
+    setShowPreview(false);
+    setGeneratedRecipe(null);
+  };
+
+  if (showPreview && generatedRecipe) {
+    return (
+      <div className="ai-generation">
+        <RecipePreview
+          recipe={generatedRecipe}
+          onSave={handleSaveRecipe}
+          onEdit={handleEditRecipe}
+          onCancel={handleCancelPreview}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="ai-generation">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
@@ -155,15 +220,25 @@ const AIGeneration: React.FC<AIGenerationProps> = ({ onRecipeGenerated, onBack }
 
       <div className="ai-form">
         <div className="form-group">
-          <label htmlFor="ai-prompt">Describe your recipe:</label>
-          <textarea
-            id="ai-prompt"
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder="e.g., A healthy vegetarian pasta dish with seasonal vegetables and herbs"
-            rows={4}
-            disabled={!aiStatus?.aiServiceConfigured}
+          <label htmlFor="ai-prompt">Recipe Description:</label>
+          <PromptBuilder
+            onPromptChange={setPrompt}
+            initialPrompt={prompt}
           />
+        </div>
+
+        <div className="form-group">
+          <label>Or choose from examples:</label>
+          <select
+            value=""
+            onChange={(e) => setPrompt(e.target.value)}
+            disabled={!aiStatus?.aiServiceConfigured}
+          >
+            <option value="">Select an example...</option>
+            {PROMPT_EXAMPLES.map((example, index) => (
+              <option key={index} value={example}>{example}</option>
+            ))}
+          </select>
         </div>
 
         <div className="form-group">
@@ -184,12 +259,26 @@ const AIGeneration: React.FC<AIGenerationProps> = ({ onRecipeGenerated, onBack }
 
         {error && <div className="error-message">{error}</div>}
 
+        {loading && generationProgress && (
+          <div className="loading-progress">
+            <div className="loading-spinner"></div>
+            <p>{generationProgress}</p>
+          </div>
+        )}
+
         <button
           onClick={handleGenerate}
           disabled={loading || !aiStatus?.aiServiceConfigured}
-          className="generate-button"
+          className={`generate-button ${loading ? 'loading' : ''}`}
         >
-          {loading ? 'Generating...' : 'Generate Recipe with AI'}
+          {loading ? (
+            <>
+              <div className="button-spinner"></div>
+              Generating Recipe...
+            </>
+          ) : (
+            `🤖 Generate ${count === 1 ? 'Recipe' : `${count} Suggestions`}`
+          )}
         </button>
 
         {!aiStatus?.aiServiceConfigured && (

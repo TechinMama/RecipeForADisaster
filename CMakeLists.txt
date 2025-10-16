@@ -118,15 +118,25 @@ list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp")  # Remove M
 list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/recipeManager.cpp")  # Remove MongoDB manager
 
 # Create main executable (SQLite version)
-add_executable(RecipeForADisaster src/main_sqlite.cpp src/recipeManagerSQLite.cpp src/recipe.cpp src/aiService.cpp src/vaultService.cpp src/common_utils.cpp)
+add_executable(RecipeForADisaster src/main_sqlite.cpp src/recipeManagerSQLite.cpp src/recipe.cpp src/aiService.cpp src/vaultService.cpp src/vault_client.cpp src/common_utils.cpp)
 
 # Create web server executable
-add_executable(web_server src/web_server.cpp src/recipeManagerSQLite.cpp src/recipe.cpp src/aiService.cpp src/vaultService.cpp src/common_utils.cpp)
+add_executable(web_server src/web_server.cpp src/recipeManagerSQLite.cpp src/recipe.cpp src/aiService.cpp src/vaultService.cpp src/vault_client.cpp src/common_utils.cpp)
 
 # Create test executables
-add_executable(integration_tests tests/test_integration.cpp src/recipe.cpp src/recipeManagerSQLite.cpp src/vaultService.cpp src/common_utils.cpp)
-add_executable(ai_service_tests tests/test_ai_service.cpp src/recipe.cpp src/recipeManagerSQLite.cpp src/aiService.cpp src/vaultService.cpp src/common_utils.cpp)
-add_executable(vault_tests tests/test_vault.cpp src/vaultService.cpp src/common_utils.cpp)
+add_executable(integration_tests tests/test_integration.cpp src/recipe.cpp src/recipeManagerSQLite.cpp src/vaultService.cpp src/vault_client.cpp src/common_utils.cpp)
+add_executable(ai_service_tests tests/test_ai_service.cpp src/recipe.cpp src/recipeManagerSQLite.cpp src/aiService.cpp src/vaultService.cpp src/vault_client.cpp src/common_utils.cpp)
+add_executable(vault_tests tests/test_vault.cpp src/vaultService.cpp src/vault_client.cpp src/common_utils.cpp)
+
+# Create unit tests with Google Test
+add_executable(unit_tests 
+    tests/test_recipe.cpp 
+    tests/test_recipe_manager.cpp 
+    src/recipe.cpp 
+    src/recipeManagerSQLite.cpp 
+    src/vaultService.cpp 
+    src/common_utils.cpp
+)
 
 # Create unit tests with Google Test
 add_executable(unit_tests 

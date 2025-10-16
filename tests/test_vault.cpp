@@ -41,11 +41,27 @@ int main() {
         }
 
         // Test Azure OpenAI credential retrieval
-        auto aiResult = vaultService.getSecret("ai/azure-openai", "endpoint");
+        auto aiResult = vaultService.getSecret("azure-openai", "endpoint");
         if (aiResult.success) {
             std::cout << "✓ Azure OpenAI endpoint retrieved from Vault successfully" << std::endl;
         } else {
             std::cout << "⚠ Azure OpenAI endpoint retrieval failed: " << aiResult.errorMessage << std::endl;
+        }
+
+        // Test API key retrieval
+        auto apiKeyResult = vaultService.getSecret("azure-openai", "api_key");
+        if (apiKeyResult.success) {
+            std::cout << "✓ Azure OpenAI API key retrieved from Vault successfully" << std::endl;
+        } else {
+            std::cout << "⚠ Azure OpenAI API key retrieval failed: " << apiKeyResult.errorMessage << std::endl;
+        }
+
+        // Test deployment name retrieval
+        auto deploymentResult = vaultService.getSecret("azure-openai", "deployment_name");
+        if (deploymentResult.success) {
+            std::cout << "✓ Azure OpenAI deployment name retrieved from Vault successfully" << std::endl;
+        } else {
+            std::cout << "⚠ Azure OpenAI deployment name retrieval failed: " << deploymentResult.errorMessage << std::endl;
         }
 
         std::cout << "Vault integration test completed successfully!" << std::endl;

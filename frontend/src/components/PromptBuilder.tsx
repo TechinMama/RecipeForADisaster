@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { PROMPT_TEMPLATES, CUISINE_TYPES, DIETARY_RESTRICTIONS, DIFFICULTY_LEVELS, COOKING_TIME_OPTIONS } from '../data/promptTemplates';
 
 interface PromptBuilderProps {
@@ -14,16 +14,16 @@ const PromptBuilder: React.FC<PromptBuilderProps> = ({ onPromptChange, initialPr
   const [cookingTime, setCookingTime] = useState<string>('');
   const [customPrompt, setCustomPrompt] = useState<string>(initialPrompt);
 
-  const handleTemplateSelect = (templateId: string) => {
+  const handleTemplateSelect = useCallback((templateId: string) => {
     const template = PROMPT_TEMPLATES.find(t => t.id === templateId);
     if (template) {
       setSelectedTemplate(templateId);
       setCuisine(template.cuisine || '');
       setDietary(template.dietary || []);
       setDifficulty(template.difficulty || '');
-      generatePrompt(template);
+      // generatePrompt will be called via useEffect when state changes
     }
-  };
+  }, []);
 
   const generatePrompt = (template?: any) => {
     const selectedTemplateData = template || PROMPT_TEMPLATES.find(t => t.id === selectedTemplate);
@@ -66,22 +66,23 @@ const PromptBuilder: React.FC<PromptBuilderProps> = ({ onPromptChange, initialPr
     onPromptChange(prompt);
   };
 
-  const handleDietaryToggle = (restriction: string) => {
+  const handleDietaryToggle = useCallback((restriction: string) => {
     setDietary(prev =>
       prev.includes(restriction)
         ? prev.filter(r => r !== restriction)
         : [...prev, restriction]
     );
-  };
+  }, []);
 
-  const handleCustomPromptChange = (value: string) => {
+  const handleCustomPromptChange = useCallback((value: string) => {
     setCustomPrompt(value);
-    generatePrompt();
-  };
+    // generatePrompt will be called via useEffect when customPrompt changes
+  }, []);
 
   React.useEffect(() => {
     generatePrompt();
-  }, [cuisine, dietary, difficulty, cookingTime, selectedTemplate]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cuisine, dietary, difficulty, cookingTime, selectedTemplate, customPrompt, onPromptChange]);
 
   return (
     <div className="prompt-builder">

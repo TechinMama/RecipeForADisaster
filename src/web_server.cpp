@@ -7,6 +7,7 @@
 #include "userManager.h"
 #include "jwtService.h"
 #include "authService.h"
+#include "jwtMiddleware.h"
 #include <iostream>
 #include <string>
 #include <vector>
@@ -673,10 +674,18 @@ int main() {
         res.end();
     });
 
-    // POST /api/recipes - Add a new recipe
+    // POST /api/recipes - Add a new recipe (PROTECTED - requires authentication)
     CROW_ROUTE(app, "/api/recipes")
     .methods("POST"_method)
-    ([&manager, &createErrorResponse, &createSuccessResponse](const crow::request& req, crow::response& res) {
+    ([&manager, &jwtService, &createErrorResponse, &createSuccessResponse](const crow::request& req, crow::response& res) {
+        // JWT Authentication - validate token
+        auto authResult = JWTMiddleware::validateRequest(req, jwtService);
+        if (!authResult.authenticated) {
+            res = JWTMiddleware::createAuthErrorResponse(authResult.error);
+            res.end();
+            return;
+        }
+        
         try {
             auto json_body = crow::json::load(req.body);
 
@@ -705,6 +714,7 @@ int main() {
                 crow::json::wvalue data;
                 data["message"] = "Recipe added successfully";
                 data["title"] = title;
+                data["userId"] = authResult.userId;  // Include userId in response
                 res = createSuccessResponse(data);
             } else {
                 res = createErrorResponse("Failed to add recipe to database", 500);
@@ -717,10 +727,18 @@ int main() {
         res.end();
     });
 
-    // PUT /api/recipes/<string> - Update a recipe
+    // PUT /api/recipes/<string> - Update a recipe (PROTECTED - requires authentication)
     CROW_ROUTE(app, "/api/recipes/<string>")
     .methods("PUT"_method)
-    ([&manager, &createErrorResponse, &createSuccessResponse](const crow::request& req, crow::response& res, const std::string& title) {
+    ([&manager, &jwtService, &createErrorResponse, &createSuccessResponse](const crow::request& req, crow::response& res, const std::string& title) {
+        // JWT Authentication - validate token
+        auto authResult = JWTMiddleware::validateRequest(req, jwtService);
+        if (!authResult.authenticated) {
+            res = JWTMiddleware::createAuthErrorResponse(authResult.error);
+            res.end();
+            return;
+        }
+        
         try {
             auto json_body = crow::json::load(req.body);
 
@@ -750,6 +768,7 @@ int main() {
                 data["message"] = "Recipe updated successfully";
                 data["oldTitle"] = title;
                 data["newTitle"] = newTitle;
+                data["userId"] = authResult.userId;  // Include userId in response
                 res = createSuccessResponse(data);
             } else {
                 res = createErrorResponse("Recipe not found or update failed", 404);
@@ -762,10 +781,18 @@ int main() {
         res.end();
     });
 
-    // DELETE /api/recipes/<string> - Delete a recipe
+    // DELETE /api/recipes/<string> - Delete a recipe (PROTECTED - requires authentication)
     CROW_ROUTE(app, "/api/recipes/<string>")
     .methods("DELETE"_method)
-    ([&manager, &createErrorResponse, &createSuccessResponse](const crow::request& req, crow::response& res, const std::string& title) {
+    ([&manager, &jwtService, &createErrorResponse, &createSuccessResponse](const crow::request& req, crow::response& res, const std::string& title) {
+        // JWT Authentication - validate token
+        auto authResult = JWTMiddleware::validateRequest(req, jwtService);
+        if (!authResult.authenticated) {
+            res = JWTMiddleware::createAuthErrorResponse(authResult.error);
+            res.end();
+            return;
+        }
+        
         try {
             bool success = manager.deleteRecipe(title);
 

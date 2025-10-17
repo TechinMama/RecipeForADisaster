@@ -24,7 +24,7 @@ void RecipeManagerSQLite::initializeDatabase() {
         throw std::runtime_error("Cannot open database: " + std::string(sqlite3_errmsg(static_cast<sqlite3*>(db_))));
     }
 
-    const char* createTableSQL =
+    const char* createRecipesTableSQL =
         "CREATE TABLE IF NOT EXISTS recipes ("
         "id TEXT PRIMARY KEY,"
         "data BLOB NOT NULL,"
@@ -32,12 +32,29 @@ void RecipeManagerSQLite::initializeDatabase() {
         "updated_at DATETIME DEFAULT CURRENT_TIMESTAMP"
         ");";
 
+    const char* createUsersTableSQL =
+        "CREATE TABLE IF NOT EXISTS users ("
+        "id TEXT PRIMARY KEY,"
+        "email TEXT UNIQUE NOT NULL,"
+        "password_hash TEXT NOT NULL,"
+        "created_at DATETIME DEFAULT CURRENT_TIMESTAMP,"
+        "updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,"
+        "is_active INTEGER DEFAULT 1"
+        ");";
+
     char* errMsg = nullptr;
-    rc = sqlite3_exec(static_cast<sqlite3*>(db_), createTableSQL, nullptr, nullptr, &errMsg);
+    rc = sqlite3_exec(static_cast<sqlite3*>(db_), createRecipesTableSQL, nullptr, nullptr, &errMsg);
     if (rc != SQLITE_OK) {
         std::string error = errMsg;
         sqlite3_free(errMsg);
-        throw std::runtime_error("Failed to create table: " + error);
+        throw std::runtime_error("Failed to create recipes table: " + error);
+    }
+
+    rc = sqlite3_exec(static_cast<sqlite3*>(db_), createUsersTableSQL, nullptr, nullptr, &errMsg);
+    if (rc != SQLITE_OK) {
+        std::string error = errMsg;
+        sqlite3_free(errMsg);
+        throw std::runtime_error("Failed to create users table: " + error);
     }
 }
 

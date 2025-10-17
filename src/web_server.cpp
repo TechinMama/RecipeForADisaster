@@ -3,6 +3,10 @@
 #include "recipeManagerSQLite.h"
 #include "aiService.h"
 #include "vaultService.h"
+#include "user.h"
+#include "userManager.h"
+#include "jwtService.h"
+#include "authService.h"
 #include <iostream>
 #include <string>
 #include <vector>
@@ -105,6 +109,89 @@ int main() {
         }
     }
 
+    // Initialize authentication services
+    std::shared_ptr<UserManager> userManager = nullptr;
+    std::shared_ptr<JwtService> jwtService = nullptr;
+    std::shared_ptr<AuthService> authService = nullptr;
+
+    try {
+        // Open users database
+        sqlite3* usersDb = nullptr;
+        int rc = sqlite3_open("users.db", &usersDb);
+        if (rc != SQLITE_OK) {
+            throw std::runtime_error("Failed to open users database");
+        }
+
+        // Create users table if it doesn't exist
+        const char* createTableSql = R"(
+            CREATE TABLE IF NOT EXISTS users (
+                id TEXT PRIMARY KEY,
+                email TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                is_active INTEGER NOT NULL DEFAULT 1
+            )
+        )";
+        
+        char* errMsg = nullptr;
+        rc = sqlite3_exec(usersDb, createTableSql, nullptr, nullptr, &errMsg);
+        if (rc != SQLITE_OK) {
+            std::string error = errMsg ? errMsg : "Unknown error";
+            sqlite3_free(errMsg);
+            throw std::runtime_error("Failed to create users table: " + error);
+        }
+
+        userManager = std::make_shared<UserManager>(usersDb);
+
+        // Initialize JWT service
+        JwtService::Config jwtConfig;
+        
+        // Get JWT configuration from environment
+        const char* jwtSecret = std::getenv("JWT_SECRET");
+        if (jwtSecret) {
+            jwtConfig.secret = jwtSecret;
+        } else {
+            std::cerr << "Warning: JWT_SECRET not set. Using insecure development secret." << std::endl;
+            jwtConfig.secret = "change-me-development-secret";
+        }
+
+        const char* jwtIssuer = std::getenv("JWT_ISSUER");
+        if (jwtIssuer) {
+            jwtConfig.issuer = jwtIssuer;
+        } else {
+            jwtConfig.issuer = "RecipeForADisaster";
+        }
+
+        const char* jwtAudience = std::getenv("JWT_AUDIENCE");
+        if (jwtAudience) {
+            jwtConfig.audience = jwtAudience;
+        } else {
+            jwtConfig.audience = "RecipeForADisaster-API";
+        }
+
+        const char* jwtExpiration = std::getenv("JWT_EXPIRATION_SECONDS");
+        if (jwtExpiration) {
+            try {
+                long seconds = std::stol(jwtExpiration);
+                if (seconds > 0) {
+                    jwtConfig.accessTokenLifetime = std::chrono::seconds(seconds);
+                }
+            } catch (...) {
+                std::cerr << "Warning: Invalid JWT_EXPIRATION_SECONDS value" << std::endl;
+            }
+        }
+
+        jwtService = std::make_shared<JwtService>(jwtConfig);
+        authService = std::make_shared<AuthService>(userManager, jwtService);
+
+        std::cout << "Authentication services initialized successfully!" << std::endl;
+
+    } catch (const std::exception& e) {
+        std::cerr << "Warning: Failed to initialize authentication services: " << e.what() << std::endl;
+        std::cerr << "Authentication endpoints will be unavailable." << std::endl;
+    }
+
     // Create Crow app with CORS middleware
     crow::App<crow::CORSHandler, ErrorHandler> app;
 
@@ -205,6 +292,266 @@ int main() {
         res.code = 200;
         res.end();
     });
+
+    // ==================== AUTHENTICATION ENDPOINTS ====================
+
+    // POST /api/auth/register - Register a new user
+    CROW_ROUTE(app, "/api/auth/register")
+    .methods("POST"_method)
+    ([&authService, &createErrorResponse](const crow::request& req, crow::response& res) {
+        if (!authService) {
+            res = createErrorResponse("Authentication service not available", 503);
+            res.end();
+            return;
+        }
+
+        try {
+            auto body = crow::json::load(req.body);
+            if (!body) {
+                res = createErrorResponse("Invalid JSON", 400);
+                res.end();
+                return;
+            }
+
+            std::string email = body["email"].s();
+            std::string password = body["password"].s();
+
+            if (email.empty() || password.empty()) {
+                res = createErrorResponse("Email and password are required", 400);
+                res.end();
+                return;
+            }
+
+            auto result = authService->registerUser(email, password);
+
+            if (result.success) {
+                crow::json::wvalue response;
+                response["success"] = true;
+                response["message"] = result.message;
+                response["data"]["userId"] = result.userId;
+                res = crow::response(201, response);
+            } else {
+                res = createErrorResponse(result.message, 400);
+            }
+        } catch (const std::exception& e) {
+            res = createErrorResponse(std::string("Registration failed: ") + e.what(), 500);
+        }
+        res.end();
+    });
+
+    // POST /api/auth/login - Login user and get JWT token
+    CROW_ROUTE(app, "/api/auth/login")
+    .methods("POST"_method)
+    ([&authService, &createErrorResponse](const crow::request& req, crow::response& res) {
+        if (!authService) {
+            res = createErrorResponse("Authentication service not available", 503);
+            res.end();
+            return;
+        }
+
+        try {
+            auto body = crow::json::load(req.body);
+            if (!body) {
+                res = createErrorResponse("Invalid JSON", 400);
+                res.end();
+                return;
+            }
+
+            std::string email = body["email"].s();
+            std::string password = body["password"].s();
+
+            if (email.empty() || password.empty()) {
+                res = createErrorResponse("Email and password are required", 400);
+                res.end();
+                return;
+            }
+
+            auto result = authService->login(email, password);
+
+            if (result.success) {
+                crow::json::wvalue response;
+                response["success"] = true;
+                response["message"] = result.message;
+                response["data"]["token"] = result.token;
+                response["data"]["userId"] = result.userId;
+                response["data"]["email"] = result.email;
+                res = crow::response(200, response);
+            } else {
+                res = createErrorResponse(result.message, 401);
+            }
+        } catch (const std::exception& e) {
+            res = createErrorResponse(std::string("Login failed: ") + e.what(), 500);
+        }
+        res.end();
+    });
+
+    // POST /api/auth/validate - Validate JWT token
+    CROW_ROUTE(app, "/api/auth/validate")
+    .methods("POST"_method)
+    ([&authService, &createErrorResponse](const crow::request& req, crow::response& res) {
+        if (!authService) {
+            res = createErrorResponse("Authentication service not available", 503);
+            res.end();
+            return;
+        }
+
+        try {
+            // Get token from Authorization header
+            std::string authHeader = req.get_header_value("Authorization");
+            std::string token;
+
+            if (authHeader.substr(0, 7) == "Bearer ") {
+                token = authHeader.substr(7);
+            } else {
+                // Try to get from body as fallback
+                auto body = crow::json::load(req.body);
+                if (body && body.has("token")) {
+                    token = body["token"].s();
+                }
+            }
+
+            if (token.empty()) {
+                res = createErrorResponse("No token provided", 401);
+                res.end();
+                return;
+            }
+
+            auto result = authService->validateToken(token);
+
+            if (result.authenticated) {
+                crow::json::wvalue response;
+                response["success"] = true;
+                response["message"] = result.message;
+                response["data"]["userId"] = result.userId;
+                response["data"]["email"] = result.email;
+                res = crow::response(200, response);
+            } else {
+                res = createErrorResponse(result.message, 401);
+            }
+        } catch (const std::exception& e) {
+            res = createErrorResponse(std::string("Token validation failed: ") + e.what(), 500);
+        }
+        res.end();
+    });
+
+    // GET /api/auth/me - Get current user profile
+    CROW_ROUTE(app, "/api/auth/me")
+    .methods("GET"_method)
+    ([&authService, &createErrorResponse](const crow::request& req, crow::response& res) {
+        if (!authService) {
+            res = createErrorResponse("Authentication service not available", 503);
+            res.end();
+            return;
+        }
+
+        try {
+            // Get token from Authorization header
+            std::string authHeader = req.get_header_value("Authorization");
+            std::string token;
+
+            if (authHeader.substr(0, 7) == "Bearer ") {
+                token = authHeader.substr(7);
+            }
+
+            if (token.empty()) {
+                res = createErrorResponse("No token provided", 401);
+                res.end();
+                return;
+            }
+
+            auto authResult = authService->validateToken(token);
+            if (!authResult.authenticated) {
+                res = createErrorResponse(authResult.message, 401);
+                res.end();
+                return;
+            }
+
+            auto userOpt = authService->getUserById(authResult.userId);
+            if (!userOpt.has_value()) {
+                res = createErrorResponse("User not found", 404);
+                res.end();
+                return;
+            }
+
+            const auto& user = userOpt.value();
+            crow::json::wvalue response;
+            response["success"] = true;
+            response["data"]["id"] = user.getId();
+            response["data"]["email"] = user.getEmail();
+            response["data"]["isActive"] = user.isActive();
+            
+            res = crow::response(200, response);
+        } catch (const std::exception& e) {
+            res = createErrorResponse(std::string("Failed to get user profile: ") + e.what(), 500);
+        }
+        res.end();
+    });
+
+    // POST /api/auth/change-password - Change user password
+    CROW_ROUTE(app, "/api/auth/change-password")
+    .methods("POST"_method)
+    ([&authService, &createErrorResponse](const crow::request& req, crow::response& res) {
+        if (!authService) {
+            res = createErrorResponse("Authentication service not available", 503);
+            res.end();
+            return;
+        }
+
+        try {
+            // Get token from Authorization header
+            std::string authHeader = req.get_header_value("Authorization");
+            std::string token;
+
+            if (authHeader.substr(0, 7) == "Bearer ") {
+                token = authHeader.substr(7);
+            }
+
+            if (token.empty()) {
+                res = createErrorResponse("No token provided", 401);
+                res.end();
+                return;
+            }
+
+            auto authResult = authService->validateToken(token);
+            if (!authResult.authenticated) {
+                res = createErrorResponse(authResult.message, 401);
+                res.end();
+                return;
+            }
+
+            auto body = crow::json::load(req.body);
+            if (!body) {
+                res = createErrorResponse("Invalid JSON", 400);
+                res.end();
+                return;
+            }
+
+            std::string oldPassword = body["oldPassword"].s();
+            std::string newPassword = body["newPassword"].s();
+
+            if (oldPassword.empty() || newPassword.empty()) {
+                res = createErrorResponse("Old password and new password are required", 400);
+                res.end();
+                return;
+            }
+
+            bool success = authService->changePassword(authResult.userId, oldPassword, newPassword);
+
+            if (success) {
+                crow::json::wvalue response;
+                response["success"] = true;
+                response["message"] = "Password changed successfully";
+                res = crow::response(200, response);
+            } else {
+                res = createErrorResponse("Failed to change password", 400);
+            }
+        } catch (const std::exception& e) {
+            res = createErrorResponse(std::string("Password change failed: ") + e.what(), 500);
+        }
+        res.end();
+    });
+
+    // ==================== END AUTHENTICATION ENDPOINTS ====================
 
     // GET /api/recipes/categories/<string> - Get recipes by category
     CROW_ROUTE(app, "/api/recipes/categories/<string>")

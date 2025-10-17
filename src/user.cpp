@@ -11,22 +11,28 @@ User::User()
     : id_(""), email_(""), password_hash_(""),
       created_at_(std::chrono::system_clock::now()),
       updated_at_(std::chrono::system_clock::now()),
-      is_active_(true) {
+      is_active_(true), name_(""), bio_(""), avatar_url_(""),
+      preferences_(nlohmann::json::object()), privacy_settings_(nlohmann::json::object()) {
 }
 
 User::User(const std::string& email, const std::string& password)
     : id_(generateId()), email_(email), password_hash_(hashPassword(password)),
       created_at_(std::chrono::system_clock::now()),
       updated_at_(std::chrono::system_clock::now()),
-      is_active_(true) {
+      is_active_(true), name_(""), bio_(""), avatar_url_(""),
+      preferences_(nlohmann::json::object()), privacy_settings_(nlohmann::json::object()) {
 }
 
 User::User(const std::string& id, const std::string& email, const std::string& passwordHash,
            const std::chrono::system_clock::time_point& createdAt,
            const std::chrono::system_clock::time_point& updatedAt,
-           bool isActive)
+           bool isActive, const std::string& name, const std::string& bio,
+           const std::string& avatarUrl, const nlohmann::json& preferences,
+           const nlohmann::json& privacySettings)
     : id_(id), email_(email), password_hash_(passwordHash),
-      created_at_(createdAt), updated_at_(updatedAt), is_active_(isActive) {
+      created_at_(createdAt), updated_at_(updatedAt), is_active_(isActive),
+      name_(name), bio_(bio), avatar_url_(avatarUrl),
+      preferences_(preferences), privacy_settings_(privacySettings) {
 }
 
 bool User::validateEmail() const {
@@ -97,7 +103,12 @@ nlohmann::json User::toJson() const {
             created_at_.time_since_epoch()).count()},
         {"updated_at", std::chrono::duration_cast<std::chrono::seconds>(
             updated_at_.time_since_epoch()).count()},
-        {"is_active", is_active_}
+        {"is_active", is_active_},
+        {"name", name_},
+        {"bio", bio_},
+        {"avatar_url", avatar_url_},
+        {"preferences", preferences_},
+        {"privacy_settings", privacy_settings_}
     };
 }
 
@@ -107,13 +118,25 @@ User User::fromJson(const nlohmann::json& json) {
     auto updatedAt = std::chrono::system_clock::time_point(
         std::chrono::seconds(json["updated_at"].get<long long>()));
 
+    // Handle optional profile fields with defaults
+    std::string name = json.value("name", "");
+    std::string bio = json.value("bio", "");
+    std::string avatarUrl = json.value("avatar_url", "");
+    nlohmann::json preferences = json.value("preferences", nlohmann::json::object());
+    nlohmann::json privacySettings = json.value("privacy_settings", nlohmann::json::object());
+
     return User(
         json["id"].get<std::string>(),
         json["email"].get<std::string>(),
         json["password_hash"].get<std::string>(),
         createdAt,
         updatedAt,
-        json["is_active"].get<bool>()
+        json["is_active"].get<bool>(),
+        name,
+        bio,
+        avatarUrl,
+        preferences,
+        privacySettings
     );
 }
 

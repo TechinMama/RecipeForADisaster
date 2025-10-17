@@ -133,14 +133,14 @@ endif()
 file(GLOB SOURCES "src/*.cpp")
 
 # Create main executable (SQLite version)
-add_executable(RecipeForADisaster src/main_sqlite.cpp src/recipeManagerSQLite.cpp src/recipe.cpp src/jwtService.cpp src/authService.cpp src/user.cpp src/userManager.cpp src/aiService.cpp src/vaultService.cpp src/vault_client.cpp src/common_utils.cpp)
+add_executable(RecipeForADisaster src/main_sqlite.cpp src/recipeManagerSQLite.cpp src/recipe.cpp src/jwtService.cpp src/authService.cpp src/user.cpp src/userManager.cpp src/collection.cpp src/collectionManager.cpp src/aiService.cpp src/vaultService.cpp src/vault_client.cpp src/common_utils.cpp)
 
 # Create web server executable
-add_executable(web_server src/web_server.cpp src/recipeManagerSQLite.cpp src/recipe.cpp src/user.cpp src/userManager.cpp src/jwtService.cpp src/authService.cpp src/jwtMiddleware.cpp src/aiService.cpp src/vaultService.cpp src/vault_client.cpp src/common_utils.cpp)
+add_executable(web_server src/web_server.cpp src/recipeManagerSQLite.cpp src/recipe.cpp src/user.cpp src/userManager.cpp src/collection.cpp src/collectionManager.cpp src/jwtService.cpp src/authService.cpp src/jwtMiddleware.cpp src/aiService.cpp src/vaultService.cpp src/vault_client.cpp src/common_utils.cpp)
 
 # Create test executables
-add_executable(integration_tests tests/test_integration.cpp src/recipe.cpp src/recipeManagerSQLite.cpp src/user.cpp src/userManager.cpp src/jwtService.cpp src/authService.cpp src/vaultService.cpp src/vault_client.cpp src/common_utils.cpp)
-add_executable(ai_service_tests tests/test_ai_service.cpp src/recipe.cpp src/recipeManagerSQLite.cpp src/user.cpp src/userManager.cpp src/jwtService.cpp src/authService.cpp src/aiService.cpp src/vaultService.cpp src/vault_client.cpp src/common_utils.cpp)
+add_executable(integration_tests tests/test_integration.cpp src/recipe.cpp src/recipeManagerSQLite.cpp src/user.cpp src/userManager.cpp src/collection.cpp src/collectionManager.cpp src/jwtService.cpp src/authService.cpp src/vaultService.cpp src/vault_client.cpp src/common_utils.cpp)
+add_executable(ai_service_tests tests/test_ai_service.cpp src/recipe.cpp src/recipeManagerSQLite.cpp src/user.cpp src/userManager.cpp src/collection.cpp src/collectionManager.cpp src/jwtService.cpp src/authService.cpp src/aiService.cpp src/vaultService.cpp src/vault_client.cpp src/common_utils.cpp)
 add_executable(vault_tests tests/test_vault.cpp src/vaultService.cpp src/vault_client.cpp src/common_utils.cpp)
 
 # Create unit tests with Google Test
@@ -153,6 +153,8 @@ add_executable(unit_tests
     src/recipeManagerSQLite.cpp 
     src/user.cpp
     src/userManager.cpp
+    src/collection.cpp
+    src/collectionManager.cpp
     src/jwtService.cpp
     src/authService.cpp
     src/vaultService.cpp 

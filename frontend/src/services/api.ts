@@ -23,6 +23,26 @@ export const recipeApi = {
     return response.data.data.recipes;
   },
 
+  // Advanced search with multiple criteria
+  advancedSearchRecipes: async (criteria: {
+    query?: string;
+    category?: string;
+    type?: string;
+    cookTimeMax?: string;
+    servingSizeMin?: string;
+    servingSizeMax?: string;
+    ingredient?: string;
+    sortBy?: string;
+    sortOrder?: string;
+  }): Promise<Recipe[]> => {
+    const params = new URLSearchParams();
+    Object.entries(criteria).forEach(([key, value]) => {
+      if (value) params.set(key, value);
+    });
+    const response = await api.get(`/recipes/advanced-search?${params.toString()}`);
+    return response.data.data.recipes;
+  },
+
   // Get recipes by category
   getRecipesByCategory: async (category: string): Promise<Recipe[]> => {
     const response = await api.get(`/recipes/categories/${encodeURIComponent(category)}`);
@@ -71,5 +91,20 @@ export const recipeApi = {
     return response.data;
   },
 };
+
+// Export individual functions for convenience
+export const {
+  getAllRecipes,
+  searchRecipes,
+  advancedSearchRecipes,
+  getRecipesByCategory,
+  getRecipesByType,
+  addRecipe,
+  updateRecipe,
+  deleteRecipe,
+  generateRecipe,
+  getAiStatus,
+  healthCheck
+} = recipeApi;
 
 export default api;

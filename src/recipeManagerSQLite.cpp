@@ -4,6 +4,8 @@
 #include <sstream>
 #include <iomanip>
 #include <chrono>
+#include <algorithm>
+#include <cctype>
 #include <nlohmann/json.hpp>
 
 // SQLite-based recipe manager implementation
@@ -248,4 +250,159 @@ std::vector<recipe> RecipeManagerSQLite::searchByCategory(const std::string& cat
 std::vector<recipe> RecipeManagerSQLite::searchByType(const std::string& type) {
     // Similar implementation to searchByTitle
     return searchByTitle(type); // Simplified - could be more sophisticated
+}
+
+std::vector<recipe> RecipeManagerSQLite::advancedSearch(const SearchCriteria& criteria) {
+    std::vector<recipe> recipes;
+    std::vector<recipe> allRecipes = getAllRecipes();
+    
+    for (const auto& r : allRecipes) {
+        bool matches = true;
+        
+        // Full-text search across all fields
+        if (!criteria.query.empty()) {
+            std::string searchLower = criteria.query;
+            std::transform(searchLower.begin(), searchLower.end(), searchLower.begin(), ::tolower);
+            
+            std::string titleLower = r.getTitle();
+            std::string ingredientsLower = r.getIngredients();
+            std::string instructionsLower = r.getInstructions();
+            std::string categoryLower = r.getCategory();
+            std::string typeLower = r.getType();
+            
+            std::transform(titleLower.begin(), titleLower.end(), titleLower.begin(), ::tolower);
+            std::transform(ingredientsLower.begin(), ingredientsLower.end(), ingredientsLower.begin(), ::tolower);
+            std::transform(instructionsLower.begin(), instructionsLower.end(), instructionsLower.begin(), ::tolower);
+            std::transform(categoryLower.begin(), categoryLower.end(), categoryLower.begin(), ::tolower);
+            std::transform(typeLower.begin(), typeLower.end(), typeLower.begin(), ::tolower);
+            
+            bool found = titleLower.find(searchLower) != std::string::npos ||
+                        ingredientsLower.find(searchLower) != std::string::npos ||
+                        instructionsLower.find(searchLower) != std::string::npos ||
+                        categoryLower.find(searchLower) != std::string::npos ||
+                        typeLower.find(searchLower) != std::string::npos;
+                        
+            if (!found) matches = false;
+        }
+        
+        // Filter by category
+        if (!criteria.category.empty() && matches) {
+            std::string categoryLower = r.getCategory();
+            std::string criteriaLower = criteria.category;
+            std::transform(categoryLower.begin(), categoryLower.end(), categoryLower.begin(), ::tolower);
+            std::transform(criteriaLower.begin(), criteriaLower.end(), criteriaLower.begin(), ::tolower);
+            
+            if (categoryLower.find(criteriaLower) == std::string::npos) {
+                matches = false;
+            }
+        }
+        
+        // Filter by type (meal type)
+        if (!criteria.type.empty() && matches) {
+            std::string typeLower = r.getType();
+            std::string criteriaLower = criteria.type;
+            std::transform(typeLower.begin(), typeLower.end(), typeLower.begin(), ::tolower);
+            std::transform(criteriaLower.begin(), criteriaLower.end(), criteriaLower.begin(), ::tolower);
+            
+            if (typeLower.find(criteriaLower) == std::string::npos) {
+                matches = false;
+            }
+        }
+        
+        // Filter by ingredient
+        if (!criteria.ingredient.empty() && matches) {
+            std::string ingredientsLower = r.getIngredients();
+            std::string criteriaLower = criteria.ingredient;
+            std::transform(ingredientsLower.begin(), ingredientsLower.end(), ingredientsLower.begin(), ::tolower);
+            std::transform(criteriaLower.begin(), criteriaLower.end(), criteriaLower.begin(), ::tolower);
+            
+            if (ingredientsLower.find(criteriaLower) == std::string::npos) {
+                matches = false;
+            }
+        }
+        
+        // Filter by cook time (max)
+        if (!criteria.cookTimeMax.empty() && matches) {
+            try {
+                int maxTime = std::stoi(criteria.cookTimeMax);
+                std::string cookTime = r.getCookTime();
+                // Extract numeric value from cook time string (e.g., "30 minutes" -> 30)
+                int recipeTime = 0;
+                size_t pos = cookTime.find_first_of("0123456789");
+                if (pos != std::string::npos) {
+                    recipeTime = std::stoi(cookTime.substr(pos));
+                }
+                if (recipeTime > maxTime) {
+                    matches = false;
+                }
+            } catch (...) {
+                // Invalid cook time, skip this filter
+            }
+        }
+        
+        // Filter by serving size (min/max)
+        if ((!criteria.servingSizeMin.empty() || !criteria.servingSizeMax.empty()) && matches) {
+            try {
+                std::string servingSize = r.getServingSize();
+                int size = 0;
+                size_t pos = servingSize.find_first_of("0123456789");
+                if (pos != std::string::npos) {
+                    size = std::stoi(servingSize.substr(pos));
+                }
+                
+                if (!criteria.servingSizeMin.empty()) {
+                    int minSize = std::stoi(criteria.servingSizeMin);
+                    if (size < minSize) matches = false;
+                }
+                
+                if (!criteria.servingSizeMax.empty()) {
+                    int maxSize = std::stoi(criteria.servingSizeMax);
+                    if (size > maxSize) matches = false;
+                }
+            } catch (...) {
+                // Invalid serving size, skip this filter
+            }
+        }
+        
+        if (matches) {
+            recipes.push_back(r);
+        }
+    }
+    
+    // Sort results
+    if (!criteria.sortBy.empty()) {
+        std::string sortBy = criteria.sortBy;
+        std::string sortOrder = criteria.sortOrder.empty() ? "asc" : criteria.sortOrder;
+        
+        std::sort(recipes.begin(), recipes.end(), [&](const recipe& a, const recipe& b) {
+            bool ascending = (sortOrder == "asc");
+            
+            if (sortBy == "title") {
+                return ascending ? a.getTitle() < b.getTitle() : a.getTitle() > b.getTitle();
+            } else if (sortBy == "cookTime") {
+                // Extract numeric cook time for comparison
+                auto extractTime = [](const std::string& cookTime) -> int {
+                    size_t pos = cookTime.find_first_of("0123456789");
+                    if (pos != std::string::npos) {
+                        try {
+                            return std::stoi(cookTime.substr(pos));
+                        } catch (...) {
+                            return 0;
+                        }
+                    }
+                    return 0;
+                };
+                int timeA = extractTime(a.getCookTime());
+                int timeB = extractTime(b.getCookTime());
+                return ascending ? timeA < timeB : timeA > timeB;
+            } else if (sortBy == "category") {
+                return ascending ? a.getCategory() < b.getCategory() : a.getCategory() > b.getCategory();
+            }
+            
+            // Default: sort by title
+            return ascending ? a.getTitle() < b.getTitle() : a.getTitle() > b.getTitle();
+        });
+    }
+    
+    return recipes;
 }

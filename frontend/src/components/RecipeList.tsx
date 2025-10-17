@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Recipe } from '../types/Recipe';
 import { recipeApi } from '../services/api';
+import AdvancedSearch from './AdvancedSearch';
 
 interface RecipeListProps {
   onEdit: (recipe: Recipe) => void;
@@ -18,9 +19,19 @@ const RecipeList: React.FC<RecipeListProps> = ({ onEdit, onView, refreshTrigger 
   const [sortBy, setSortBy] = useState<'title' | 'category' | 'type' | 'cookTime'>('title');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [currentPage, setCurrentPage] = useState(1);
+  const [useAdvancedSearch, setUseAdvancedSearch] = useState(false);
   const recipesPerPage = 6;
 
+  const handleAdvancedSearchResults = (searchResults: Recipe[]) => {
+    setRecipes(searchResults);
+    setUseAdvancedSearch(searchResults.length > 0 || true); // Keep advanced mode active
+    setCurrentPage(1);
+  };
+
   const loadRecipes = useCallback(async () => {
+    // Skip loading if using advanced search results
+    if (useAdvancedSearch) return;
+
     try {
       setLoading(true);
       let data: Recipe[];
@@ -117,17 +128,27 @@ const RecipeList: React.FC<RecipeListProps> = ({ onEdit, onView, refreshTrigger 
 
   return (
     <div className="recipe-list">
+      {/* Advanced Search Component */}
+      <AdvancedSearch onResultsChange={handleAdvancedSearchResults} />
+
+      {/* Basic filters (kept for quick access) */}
       <div className="filters">
         <input
           type="text"
-          placeholder="Search recipes..."
+          placeholder="Quick search recipes..."
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={(e) => {
+            setSearchQuery(e.target.value);
+            setUseAdvancedSearch(false); // Switch to basic search
+          }}
           className="search-input"
         />
         <select
           value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value)}
+          onChange={(e) => {
+            setCategoryFilter(e.target.value);
+            setUseAdvancedSearch(false); // Switch to basic search
+          }}
           className="filter-select"
         >
           <option value="">All Categories</option>
@@ -139,7 +160,10 @@ const RecipeList: React.FC<RecipeListProps> = ({ onEdit, onView, refreshTrigger 
         </select>
         <select
           value={typeFilter}
-          onChange={(e) => setTypeFilter(e.target.value)}
+          onChange={(e) => {
+            setTypeFilter(e.target.value);
+            setUseAdvancedSearch(false); // Switch to basic search
+          }}
           className="filter-select"
         >
           <option value="">All Types</option>

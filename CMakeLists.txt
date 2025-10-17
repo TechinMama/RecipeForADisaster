@@ -53,14 +53,7 @@ FetchContent_Declare(
   crow
   GIT_REPOSITORY https://github.com/CrowCpp/Crow.git
   GIT_TAG master
-  GIT_TAG master
 )
-# Ensure Crow uses the same toolchain
-set(CROW_CMAKE_ARGS -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE})
-FetchContent_MakeAvailable(crow)
-# Ensure Crow uses the same toolchain
-set(CROW_CMAKE_ARGS -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE})
-FetchContent_MakeAvailable(crow)
 # Ensure Crow uses the same toolchain
 set(CROW_CMAKE_ARGS -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE})
 FetchContent_MakeAvailable(crow)
@@ -84,14 +77,6 @@ FetchContent_Declare(
   GIT_TAG v3.11.2
 )
 FetchContent_MakeAvailable(nlohmann_json)
-
-# Add jwt-cpp for JSON Web Token support
-FetchContent_Declare(
-    jwt_cpp
-    GIT_REPOSITORY https://github.com/Thalhammer/jwt-cpp.git
-    GIT_TAG v0.7.0
-)
-FetchContent_MakeAvailable(jwt_cpp)
 
 # Add jwt-cpp for JSON Web Token support
 FetchContent_Declare(
@@ -144,31 +129,16 @@ else()
     message(FATAL_ERROR "OpenSSL not found")
 endif()
 
-# Find OpenSSL
-find_package(OpenSSL REQUIRED)
-
-if(OpenSSL_FOUND)
-    message(STATUS "Found OpenSSL: ${OPENSSL_INCLUDE_DIR}")
-    include_directories(${OPENSSL_INCLUDE_DIR})
-else()
-    message(FATAL_ERROR "OpenSSL not found")
-endif()
-
 # Main application sources
 file(GLOB SOURCES "src/*.cpp")
 
 # Create main executable (SQLite version)
 add_executable(RecipeForADisaster src/main_sqlite.cpp src/recipeManagerSQLite.cpp src/recipe.cpp src/jwtService.cpp src/authService.cpp src/user.cpp src/userManager.cpp src/aiService.cpp src/vaultService.cpp src/vault_client.cpp src/common_utils.cpp)
-add_executable(RecipeForADisaster src/main_sqlite.cpp src/recipeManagerSQLite.cpp src/recipe.cpp src/jwtService.cpp src/authService.cpp src/user.cpp src/userManager.cpp src/aiService.cpp src/vaultService.cpp src/vault_client.cpp src/common_utils.cpp)
 
-# Create web server executable
 # Create web server executable
 add_executable(web_server src/web_server.cpp src/recipeManagerSQLite.cpp src/recipe.cpp src/user.cpp src/userManager.cpp src/jwtService.cpp src/authService.cpp src/jwtMiddleware.cpp src/aiService.cpp src/vaultService.cpp src/vault_client.cpp src/common_utils.cpp)
-add_executable(web_server src/web_server.cpp src/recipeManagerSQLite.cpp src/recipe.cpp src/user.cpp src/userManager.cpp src/jwtService.cpp src/authService.cpp src/aiService.cpp src/vaultService.cpp src/vault_client.cpp src/common_utils.cpp)
 
 # Create test executables
-add_executable(integration_tests tests/test_integration.cpp src/recipe.cpp src/recipeManagerSQLite.cpp src/user.cpp src/userManager.cpp src/jwtService.cpp src/authService.cpp src/vaultService.cpp src/vault_client.cpp src/common_utils.cpp)
-add_executable(ai_service_tests tests/test_ai_service.cpp src/recipe.cpp src/recipeManagerSQLite.cpp src/user.cpp src/userManager.cpp src/jwtService.cpp src/authService.cpp src/aiService.cpp src/vaultService.cpp src/vault_client.cpp src/common_utils.cpp)
 add_executable(integration_tests tests/test_integration.cpp src/recipe.cpp src/recipeManagerSQLite.cpp src/user.cpp src/userManager.cpp src/jwtService.cpp src/authService.cpp src/vaultService.cpp src/vault_client.cpp src/common_utils.cpp)
 add_executable(ai_service_tests tests/test_ai_service.cpp src/recipe.cpp src/recipeManagerSQLite.cpp src/user.cpp src/userManager.cpp src/jwtService.cpp src/authService.cpp src/aiService.cpp src/vaultService.cpp src/vault_client.cpp src/common_utils.cpp)
 add_executable(vault_tests tests/test_vault.cpp src/vaultService.cpp src/vault_client.cpp src/common_utils.cpp)
@@ -179,14 +149,8 @@ add_executable(unit_tests
     tests/test_recipe_manager.cpp 
     tests/test_jwt_service.cpp
     tests/test_auth_service.cpp
-    tests/test_jwt_service.cpp
-    tests/test_auth_service.cpp
     src/recipe.cpp 
     src/recipeManagerSQLite.cpp 
-    src/user.cpp
-    src/userManager.cpp
-    src/jwtService.cpp
-    src/authService.cpp
     src/user.cpp
     src/userManager.cpp
     src/jwtService.cpp
@@ -201,10 +165,6 @@ target_link_libraries(RecipeForADisaster ${DATABASE_LIBRARIES} CURL::libcurl nlo
 target_link_libraries(web_server ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json Crow::Crow OpenSSL::SSL OpenSSL::Crypto)
 target_link_libraries(integration_tests ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json OpenSSL::SSL OpenSSL::Crypto)
 target_link_libraries(ai_service_tests ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json OpenSSL::SSL OpenSSL::Crypto)
-target_link_libraries(RecipeForADisaster ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json OpenSSL::SSL OpenSSL::Crypto)
-target_link_libraries(web_server ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json Crow::Crow OpenSSL::SSL OpenSSL::Crypto)
-target_link_libraries(integration_tests ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json OpenSSL::SSL OpenSSL::Crypto)
-target_link_libraries(ai_service_tests ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json OpenSSL::SSL OpenSSL::Crypto)
 target_link_libraries(vault_tests CURL::libcurl nlohmann_json::nlohmann_json)
 target_link_libraries(unit_tests ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json GTest::gtest_main OpenSSL::SSL OpenSSL::Crypto)
 target_link_libraries(unit_tests ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json GTest::gtest_main OpenSSL::SSL OpenSSL::Crypto)
@@ -212,11 +172,7 @@ target_link_libraries(unit_tests ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_js
 # Test executable needs the same include directories
 target_include_directories(integration_tests PRIVATE include)
 target_include_directories(ai_service_tests PRIVATE include)
-target_include_directories(integration_tests PRIVATE include)
-target_include_directories(ai_service_tests PRIVATE include)
 target_include_directories(ai_service_tests PRIVATE ${CMAKE_BINARY_DIR}/_deps/nlohmann_json-src/include)
-target_include_directories(integration_tests PRIVATE ${jwt_cpp_SOURCE_DIR}/include)
-target_include_directories(ai_service_tests PRIVATE ${jwt_cpp_SOURCE_DIR}/include)
 target_include_directories(integration_tests PRIVATE ${jwt_cpp_SOURCE_DIR}/include)
 target_include_directories(ai_service_tests PRIVATE ${jwt_cpp_SOURCE_DIR}/include)
 target_include_directories(vault_tests PRIVATE include)
@@ -224,16 +180,11 @@ target_include_directories(vault_tests PRIVATE ${CMAKE_BINARY_DIR}/_deps/nlohman
 target_include_directories(RecipeForADisaster PRIVATE include)
 target_include_directories(RecipeForADisaster PRIVATE ${CMAKE_BINARY_DIR}/_deps/nlohmann_json-src/include)
 target_include_directories(RecipeForADisaster PRIVATE ${jwt_cpp_SOURCE_DIR}/include)
-target_include_directories(RecipeForADisaster PRIVATE ${jwt_cpp_SOURCE_DIR}/include)
 target_include_directories(web_server PRIVATE include)
 target_include_directories(web_server PRIVATE ${CMAKE_BINARY_DIR}/_deps/nlohmann_json-src/include)
 target_include_directories(web_server PRIVATE ${CMAKE_BINARY_DIR}/_deps/crow-src/include)
 target_include_directories(web_server PRIVATE ${CMAKE_BINARY_DIR}/_deps/asio-src/asio/include)
 target_include_directories(web_server PRIVATE ${jwt_cpp_SOURCE_DIR}/include)
-target_include_directories(web_server PRIVATE ${jwt_cpp_SOURCE_DIR}/include)
-target_include_directories(vault_tests PRIVATE include)
-target_include_directories(vault_tests PRIVATE ${CMAKE_BINARY_DIR}/_deps/nlohmann_json-src/include)
-target_include_directories(unit_tests PRIVATE ${jwt_cpp_SOURCE_DIR}/include)
 target_include_directories(unit_tests PRIVATE ${jwt_cpp_SOURCE_DIR}/include)
 
 # Add tests

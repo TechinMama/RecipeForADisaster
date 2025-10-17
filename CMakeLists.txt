@@ -20,7 +20,7 @@ if(DEFINED ENV{VCPKG_ROOT})
     endif()
 endif()
 
-set(CMAKE_CXX_STANDARD 17) # Set the C++ standard to C++17
+set(CMAKE_CXX_STANDARD 20) # Set the C++ standard to C++20
 
 project(RecipeForADisaster)
 

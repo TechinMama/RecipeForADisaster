@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Recipe } from '../types/Recipe';
+import { Recipe, User, Collection } from '../types/Recipe';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080/api';
 
@@ -9,6 +9,20 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+// Add request interceptor to include auth token
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
 
 export const recipeApi = {
   // Get all recipes
@@ -90,6 +104,78 @@ export const recipeApi = {
     const response = await api.get('/health');
     return response.data;
   },
+
+  // Get current user profile
+  getCurrentUser: async (): Promise<User> => {
+    const response = await api.get('/auth/me');
+    return response.data.data;
+  },
+
+  // Update current user profile
+  updateCurrentUser: async (userData: Partial<User>): Promise<{ success: boolean; message: string }> => {
+    const response = await api.put('/auth/me', userData);
+    return response.data;
+  },
+
+  // Get user's collections
+  getCollections: async (): Promise<Collection[]> => {
+    const response = await api.get('/collections');
+    return response.data.data.collections;
+  },
+
+  // Create new collection
+  createCollection: async (collection: Omit<Collection, 'id' | 'userId' | 'createdAt' | 'updatedAt'>): Promise<{ success: boolean; message: string; data: Collection }> => {
+    const response = await api.post('/collections', collection);
+    return response.data;
+  },
+
+  // Get specific collection
+  getCollection: async (id: string): Promise<Collection> => {
+    const response = await api.get(`/collections/${id}`);
+    return response.data.data.collection;
+  },
+
+  // Update collection
+  updateCollection: async (id: string, collection: Partial<Collection>): Promise<{ success: boolean; message: string }> => {
+    const response = await api.put(`/collections/${id}`, collection);
+    return response.data;
+  },
+
+  // Delete collection
+  deleteCollection: async (id: string): Promise<{ success: boolean; message: string }> => {
+    const response = await api.delete(`/collections/${id}`);
+    return response.data;
+  },
+
+  // Add recipe to collection
+  addRecipeToCollection: async (collectionId: string, recipeId: string): Promise<{ success: boolean; message: string }> => {
+    const response = await api.post(`/collections/${collectionId}/recipes/${recipeId}`);
+    return response.data;
+  },
+
+  // Remove recipe from collection
+  removeRecipeFromCollection: async (collectionId: string, recipeId: string): Promise<{ success: boolean; message: string }> => {
+    const response = await api.delete(`/collections/${collectionId}/recipes/${recipeId}`);
+    return response.data;
+  },
+
+  // Login user
+  login: async (email: string, password: string): Promise<{ success: boolean; message: string; data?: { token: string; user: User } }> => {
+    const response = await api.post('/auth/login', { email, password });
+    return response.data;
+  },
+
+  // Register new user
+  register: async (userData: { name: string; email: string; password: string }): Promise<{ success: boolean; message: string; data?: { token: string; user: User } }> => {
+    const response = await api.post('/auth/register', userData);
+    return response.data;
+  },
+
+  // Logout user
+  logout: async (): Promise<{ success: boolean; message: string }> => {
+    const response = await api.post('/auth/logout');
+    return response.data;
+  },
 };
 
 // Export individual functions for convenience
@@ -104,7 +190,19 @@ export const {
   deleteRecipe,
   generateRecipe,
   getAiStatus,
-  healthCheck
+  healthCheck,
+  login,
+  register,
+  logout,
+  getCurrentUser,
+  updateCurrentUser,
+  getCollections,
+  createCollection,
+  getCollection,
+  updateCollection,
+  deleteCollection,
+  addRecipeToCollection,
+  removeRecipeFromCollection
 } = recipeApi;
 
 export default api;

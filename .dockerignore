@@ -11,6 +11,7 @@ vcpkg/
 # Git
 .git/
 .gitignore
+.github/
 
 # IDE
 .vscode/
@@ -18,6 +19,50 @@ vcpkg/
 
 # OS
 .DS_Store
+Thumbs.db
+
+# Development files
+.env
+.env.local
+.env.development
+*.log
+logs/
+
+# Documentation (not needed in container)
+*.md
+docs/
+QUICKSTART_GUIDE.md
+FUNCTIONAL_TESTING_GUIDE.md
+PRODUCTION_DEPLOYMENT.md
+
+# Test files
+tests/
+test_api.py
+Testing/
+*_test.cpp
+*Test.cpp
+
+# Development scripts
+setup-dev.sh
+build.sh
+
+# Docker files (not needed in container)
+docker-compose*.yml
+Dockerfile*
+.dockerignore
+
+# Node.js (frontend build artifacts)
+frontend/node_modules/
+frontend/build/
+frontend/.env*
+
+# Data files (will be created in container)
+*.db
+data/
+recipes.db
+
+# Nginx (only needed for production profile)
+nginx/
 Thumbs.db
 
 # Logs and temporary files

@@ -29,7 +29,12 @@ protected:
                 password_hash TEXT NOT NULL,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL,
-                is_active INTEGER NOT NULL DEFAULT 1
+                is_active INTEGER NOT NULL DEFAULT 1,
+                name TEXT,
+                bio TEXT,
+                avatar_url TEXT,
+                preferences TEXT,
+                privacy_settings TEXT
             )
         )";
         

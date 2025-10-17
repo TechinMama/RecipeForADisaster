@@ -5,6 +5,8 @@
 #include "vaultService.h"
 #include "user.h"
 #include "userManager.h"
+#include "collection.h"
+#include "collectionManager.h"
 #include "jwtService.h"
 #include "authService.h"
 #include "jwtMiddleware.h"
@@ -12,6 +14,31 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <cstdlib>
+#include <filesystem>
+
+// Utility function to get database path from environment variable with fallback
+std::string getDatabasePath(const std::string& envVar, const std::string& defaultFilename) {
+    const char* envPath = std::getenv(envVar.c_str());
+    if (envPath && !std::string(envPath).empty()) {
+        return std::string(envPath);
+    }
+
+    // Fallback to $HOME/.recipeforadisaster/ directory
+    const char* homeDir = std::getenv("HOME");
+    if (homeDir) {
+        std::filesystem::path dataDir = std::filesystem::path(homeDir) / ".recipeforadisaster";
+        try {
+            std::filesystem::create_directories(dataDir);
+            return (dataDir / defaultFilename).string();
+        } catch (const std::filesystem::filesystem_error& e) {
+            std::cerr << "Warning: Failed to create data directory " << dataDir << ": " << e.what() << std::endl;
+        }
+    }
+
+    // Final fallback to current directory
+    return defaultFilename;
+}
 
 // Custom middleware for error handling
 struct ErrorHandler {
@@ -32,7 +59,9 @@ int main() {
 
     // Use SQLite database
     try {
-        managerPtr = std::make_unique<RecipeManagerSQLite>("recipes.db");
+        std::string recipesDbPath = getDatabasePath("RECIPES_DB_PATH", "recipes.db");
+        std::cout << "Using recipes database: " << recipesDbPath << std::endl;
+        managerPtr = std::make_unique<RecipeManagerSQLite>(recipesDbPath);
     } catch (const std::exception& e) {
         std::cerr << "Failed to initialize SQLite database: " << e.what() << std::endl;
         return 1;
@@ -114,11 +143,14 @@ int main() {
     std::shared_ptr<UserManager> userManager = nullptr;
     std::shared_ptr<JwtService> jwtService = nullptr;
     std::shared_ptr<AuthService> authService = nullptr;
+    std::shared_ptr<CollectionManager> collectionManager = nullptr;
 
     try {
         // Open users database
+        std::string usersDbPath = getDatabasePath("USERS_DB_PATH", "users.db");
+        std::cout << "Using users database: " << usersDbPath << std::endl;
         sqlite3* usersDb = nullptr;
-        int rc = sqlite3_open("users.db", &usersDb);
+        int rc = sqlite3_open(usersDbPath.c_str(), &usersDb);
         if (rc != SQLITE_OK) {
             throw std::runtime_error("Failed to open users database");
         }
@@ -131,7 +163,12 @@ int main() {
                 password_hash TEXT NOT NULL,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL,
-                is_active INTEGER NOT NULL DEFAULT 1
+                is_active INTEGER NOT NULL DEFAULT 1,
+                name TEXT,
+                bio TEXT,
+                avatar_url TEXT,
+                preferences TEXT,
+                privacy_settings TEXT
             )
         )";
         
@@ -186,7 +223,11 @@ int main() {
         jwtService = std::make_shared<JwtService>(jwtConfig);
         authService = std::make_shared<AuthService>(userManager, jwtService);
 
-        std::cout << "Authentication services initialized successfully!" << std::endl;
+        // Initialize CollectionManager with the same database as UserManager
+        std::string recipesDbPath = getDatabasePath("RECIPES_DB_PATH", "recipes.db");
+        collectionManager = std::make_shared<CollectionManager>(usersDb, recipesDbPath);
+
+        std::cout << "Authentication and collection services initialized successfully!" << std::endl;
 
     } catch (const std::exception& e) {
         std::cerr << "Warning: Failed to initialize authentication services: " << e.what() << std::endl;
@@ -542,10 +583,103 @@ int main() {
             response["data"]["id"] = user.getId();
             response["data"]["email"] = user.getEmail();
             response["data"]["isActive"] = user.isActive();
+            response["data"]["name"] = user.getName();
+            response["data"]["bio"] = user.getBio();
+            response["data"]["avatarUrl"] = user.getAvatarUrl();
+            response["data"]["preferences"] = crow::json::load(user.getPreferences());
+            response["data"]["privacySettings"] = crow::json::load(user.getPrivacySettings());
             
             res = crow::response(200, response);
         } catch (const std::exception& e) {
             res = createErrorResponse(std::string("Failed to get user profile: ") + e.what(), 500);
+        }
+        res.end();
+    });
+
+    // PUT /api/auth/me - Update current user profile
+    CROW_ROUTE(app, "/api/auth/me")
+    .methods("PUT"_method)
+    ([&authService, &createErrorResponse](const crow::request& req, crow::response& res) {
+        if (!authService) {
+            res = createErrorResponse("Authentication service not available", 503);
+            res.end();
+            return;
+        }
+
+        try {
+            // Get token from Authorization header
+            std::string authHeader = req.get_header_value("Authorization");
+            std::string token;
+
+            if (authHeader.substr(0, 7) == "Bearer ") {
+                token = authHeader.substr(7);
+            }
+
+            if (token.empty()) {
+                res = createErrorResponse("No token provided", 401);
+                res.end();
+                return;
+            }
+
+            auto authResult = authService->validateToken(token);
+            if (!authResult.authenticated) {
+                res = createErrorResponse(authResult.message, 401);
+                res.end();
+                return;
+            }
+
+            auto userOpt = authService->getUserById(authResult.userId);
+            if (!userOpt.has_value()) {
+                res = createErrorResponse("User not found", 404);
+                res.end();
+                return;
+            }
+
+            auto body = crow::json::load(req.body);
+            if (!body) {
+                res = createErrorResponse("Invalid JSON", 400);
+                res.end();
+                return;
+            }
+
+            auto& user = userOpt.value();
+
+            // Update profile fields if provided
+            if (body.has("name")) {
+                user.setName(body["name"].s());
+            }
+            if (body.has("bio")) {
+                user.setBio(body["bio"].s());
+            }
+            if (body.has("avatarUrl")) {
+                user.setAvatarUrl(body["avatarUrl"].s());
+            }
+            if (body.has("preferences")) {
+                user.setPreferences(std::string(body["preferences"]));
+            }
+            if (body.has("privacySettings")) {
+                user.setPrivacySettings(std::string(body["privacySettings"]));
+            }
+
+            // Update user in database
+            if (authService->updateUser(user)) {
+                crow::json::wvalue response;
+                response["success"] = true;
+                response["message"] = "Profile updated successfully";
+                response["data"]["id"] = user.getId();
+                response["data"]["email"] = user.getEmail();
+                response["data"]["isActive"] = user.isActive();
+                response["data"]["name"] = user.getName();
+                response["data"]["bio"] = user.getBio();
+                response["data"]["avatarUrl"] = user.getAvatarUrl();
+                response["data"]["preferences"] = crow::json::load(user.getPreferences());
+                response["data"]["privacySettings"] = crow::json::load(user.getPrivacySettings());
+                res = crow::response(200, response);
+            } else {
+                res = createErrorResponse("Failed to update profile", 500);
+            }
+        } catch (const std::exception& e) {
+            res = createErrorResponse(std::string("Failed to update profile: ") + e.what(), 500);
         }
         res.end();
     });
@@ -884,6 +1018,513 @@ int main() {
 
         } catch (const std::exception& e) {
             res = createErrorResponse("Unexpected error: " + std::string(e.what()), 500);
+        }
+        res.end();
+    });
+
+    // ==========================================
+    // COLLECTION ENDPOINTS
+    // ==========================================
+
+    // GET /api/collections - Get user's collections
+    CROW_ROUTE(app, "/api/collections")
+    .methods("GET"_method)
+    ([&collectionManager, &authService, &createSuccessResponse, &createErrorResponse](const crow::request& req, crow::response& res) {
+        try {
+            // Extract and validate JWT token
+            auto authHeader = req.get_header_value("Authorization");
+            if (authHeader.empty() || authHeader.substr(0, 7) != "Bearer ") {
+                res = createErrorResponse("Missing or invalid authorization header", 401);
+                res.end();
+                return;
+            }
+
+            std::string token = authHeader.substr(7);
+            auto authResult = authService->validateToken(token);
+            if (!authResult.authenticated) {
+                res = createErrorResponse(authResult.message, 401);
+                res.end();
+                return;
+            }
+
+            std::string userId = authResult.userId;
+
+            // Get user's collections
+            auto collections = collectionManager->getUserCollections(userId);
+
+            crow::json::wvalue data;
+            data["collections"] = crow::json::wvalue::list();
+
+            for (const auto& collection : collections) {
+                crow::json::wvalue collectionJson;
+                collectionJson["id"] = collection.getId();
+                collectionJson["name"] = collection.getName();
+                collectionJson["description"] = collection.getDescription();
+                collectionJson["userId"] = collection.getUserId();
+                collectionJson["privacySettings"] = collection.getPrivacySettings();
+                collectionJson["createdAt"] = collection.getCreatedAt();
+                collectionJson["updatedAt"] = collection.getUpdatedAt();
+
+                // Get recipe count for this collection
+                int recipeCount = collectionManager->getCollectionRecipeCount(collection.getId());
+                collectionJson["recipeCount"] = recipeCount;
+
+                data["collections"][data["collections"].size()] = std::move(collectionJson);
+            }
+
+            res = createSuccessResponse(data);
+        } catch (const std::exception& e) {
+            res = createErrorResponse("Failed to get collections: " + std::string(e.what()), 500);
+        }
+        res.end();
+    });
+
+    // POST /api/collections - Create new collection
+    CROW_ROUTE(app, "/api/collections")
+    .methods("POST"_method)
+    ([&collectionManager, &authService, &createSuccessResponse, &createErrorResponse](const crow::request& req, crow::response& res) {
+        try {
+            // Extract and validate JWT token
+            auto authHeader = req.get_header_value("Authorization");
+            if (authHeader.empty() || authHeader.substr(0, 7) != "Bearer ") {
+                res = createErrorResponse("Missing or invalid authorization header", 401);
+                res.end();
+                return;
+            }
+
+            std::string token = authHeader.substr(7);
+            auto authResult = authService->validateToken(token);
+            if (!authResult.authenticated) {
+                res = createErrorResponse(authResult.message, 401);
+                res.end();
+                return;
+            }
+
+            std::string userId = authResult.userId;
+
+            // Parse JSON body
+            crow::json::rvalue json_body;
+            try {
+                json_body = crow::json::load(req.body);
+            } catch (const std::exception& e) {
+                res = createErrorResponse("Invalid JSON in request body", 400);
+                res.end();
+                return;
+            }
+
+            // Validate required fields
+            if (!json_body.has("name") || !json_body["name"].s().size()) {
+                res = createErrorResponse("Collection name is required", 400);
+                res.end();
+                return;
+            }
+
+            std::string name = json_body["name"].s();
+            std::string description = json_body.has("description") ? std::string(json_body["description"].s()) : "";
+            std::string privacySettings = json_body.has("privacySettings") ? std::string(json_body["privacySettings"].s()) : "private";
+
+            // Validate privacy settings
+            if (privacySettings != "private" && privacySettings != "public" && privacySettings != "shared") {
+                res = createErrorResponse("Invalid privacy settings. Must be 'private', 'public', or 'shared'", 400);
+                res.end();
+                return;
+            }
+
+            // Generate ID for the collection
+            std::string collectionId = User::generateId();
+
+            // Create collection
+            Collection newCollection(name, description, userId, privacySettings, collectionId);
+            bool success = collectionManager->createCollection(newCollection);
+
+            if (!success) {
+                res = createErrorResponse("Failed to create collection", 500);
+                res.end();
+                return;
+            }
+
+            // Get the created collection
+            auto createdCollection = collectionManager->getCollectionById(collectionId);
+            if (!createdCollection) {
+                res = createErrorResponse("Collection created but could not retrieve details", 500);
+                res.end();
+                return;
+            }
+
+            crow::json::wvalue data;
+            data["collection"]["id"] = createdCollection->getId();
+            data["collection"]["name"] = createdCollection->getName();
+            data["collection"]["description"] = createdCollection->getDescription();
+            data["collection"]["userId"] = createdCollection->getUserId();
+            data["collection"]["privacySettings"] = createdCollection->getPrivacySettings();
+            data["collection"]["createdAt"] = createdCollection->getCreatedAt();
+            data["collection"]["updatedAt"] = createdCollection->getUpdatedAt();
+            data["collection"]["recipeCount"] = 0;
+
+            res = createSuccessResponse(data);
+        } catch (const std::exception& e) {
+            res = createErrorResponse("Failed to create collection: " + std::string(e.what()), 500);
+        }
+        res.end();
+    });
+
+    // GET /api/collections/<id> - Get specific collection
+    CROW_ROUTE(app, "/api/collections/<string>")
+    .methods("GET"_method)
+    ([&collectionManager, &authService, &createSuccessResponse, &createErrorResponse](const crow::request& req, crow::response& res, std::string collectionIdStr) {
+        try {
+            // Extract and validate JWT token
+            auto authHeader = req.get_header_value("Authorization");
+            if (authHeader.empty() || authHeader.substr(0, 7) != "Bearer ") {
+                res = createErrorResponse("Missing or invalid authorization header", 401);
+                res.end();
+                return;
+            }
+
+            std::string token = authHeader.substr(7);
+            auto authResult = authService->validateToken(token);
+            if (!authResult.authenticated) {
+                res = createErrorResponse(authResult.message, 401);
+                res.end();
+                return;
+            }
+
+            std::string userId = authResult.userId;
+
+            // Collection ID is already a string from the URL parameter
+            std::string collectionId = collectionIdStr;
+
+            // Get collection
+            auto collection = collectionManager->getCollectionById(collectionId);
+            if (!collection) {
+                res = createErrorResponse("Collection not found", 404);
+                res.end();
+                return;
+            }
+
+            // Check if user owns this collection or if it's public
+            if (collection->getUserId() != userId && collection->getPrivacySettings() == "private") {
+                res = createErrorResponse("Access denied", 403);
+                res.end();
+                return;
+            }
+
+            crow::json::wvalue data;
+            data["collection"]["id"] = collection->getId();
+            data["collection"]["name"] = collection->getName();
+            data["collection"]["description"] = collection->getDescription();
+            data["collection"]["userId"] = collection->getUserId();
+            data["collection"]["privacySettings"] = collection->getPrivacySettings();
+            data["collection"]["createdAt"] = collection->getCreatedAt();
+            data["collection"]["updatedAt"] = collection->getUpdatedAt();
+
+            // Get recipes in this collection (just IDs for now)
+            auto recipeIds = collectionManager->getRecipeIdsInCollection(collectionId);
+            data["collection"]["recipes"] = crow::json::wvalue::list();
+
+            for (const auto& recipeId : recipeIds) {
+                crow::json::wvalue recipeJson;
+                recipeJson["id"] = recipeId;
+                // TODO: Add full recipe details when recipe model is updated
+                data["collection"]["recipes"][data["collection"]["recipes"].size()] = std::move(recipeJson);
+            }
+
+            data["collection"]["recipeCount"] = recipeIds.size();
+
+            res = createSuccessResponse(data);
+        } catch (const std::exception& e) {
+            res = createErrorResponse("Failed to get collection: " + std::string(e.what()), 500);
+        }
+        res.end();
+    });
+
+    // PUT /api/collections/<id> - Update collection
+    CROW_ROUTE(app, "/api/collections/<string>")
+    .methods("PUT"_method)
+    ([&collectionManager, &authService, &createSuccessResponse, &createErrorResponse](const crow::request& req, crow::response& res, std::string collectionIdStr) {
+        try {
+            // Extract and validate JWT token
+            auto authHeader = req.get_header_value("Authorization");
+            if (authHeader.empty() || authHeader.substr(0, 7) != "Bearer ") {
+                res = createErrorResponse("Missing or invalid authorization header", 401);
+                res.end();
+                return;
+            }
+
+            std::string token = authHeader.substr(7);
+            auto authResult = authService->validateToken(token);
+            if (!authResult.authenticated) {
+                res = createErrorResponse(authResult.message, 401);
+                res.end();
+                return;
+            }
+
+            std::string userId = authResult.userId;
+
+            // Collection ID is already a string from the URL parameter
+            std::string collectionId = collectionIdStr;
+
+            // Check if collection exists and user owns it
+            auto existingCollection = collectionManager->getCollectionById(collectionId);
+            if (!existingCollection) {
+                res = createErrorResponse("Collection not found", 404);
+                res.end();
+                return;
+            }
+
+            if (existingCollection->getUserId() != userId) {
+                res = createErrorResponse("Access denied", 403);
+                res.end();
+                return;
+            }
+
+            // Parse JSON body
+            crow::json::rvalue json_body;
+            try {
+                json_body = crow::json::load(req.body);
+            } catch (const std::exception& e) {
+                res = createErrorResponse("Invalid JSON in request body", 400);
+                res.end();
+                return;
+            }
+
+            // Update collection fields
+            std::string name = json_body.has("name") ? std::string(json_body["name"].s()) : existingCollection->getName();
+            std::string description = json_body.has("description") ? std::string(json_body["description"].s()) : existingCollection->getDescription();
+            std::string privacySettings = json_body.has("privacySettings") ? std::string(json_body["privacySettings"].s()) : existingCollection->getPrivacySettings();
+
+            // Validate required fields
+            if (name.empty()) {
+                res = createErrorResponse("Collection name cannot be empty", 400);
+                res.end();
+                return;
+            }
+
+            // Validate privacy settings
+            if (privacySettings != "private" && privacySettings != "public" && privacySettings != "shared") {
+                res = createErrorResponse("Invalid privacy settings. Must be 'private', 'public', or 'shared'", 400);
+                res.end();
+                return;
+            }
+
+            // Update collection
+            Collection updatedCollection(collectionId, name, description, userId, privacySettings);
+            bool success = collectionManager->updateCollection(updatedCollection);
+
+            if (!success) {
+                res = createErrorResponse("Failed to update collection", 500);
+                res.end();
+                return;
+            }
+
+            // Get updated collection
+            auto finalCollection = collectionManager->getCollectionById(collectionId);
+            if (!finalCollection) {
+                res = createErrorResponse("Collection updated but could not retrieve details", 500);
+                res.end();
+                return;
+            }
+
+            crow::json::wvalue data;
+            data["collection"]["id"] = finalCollection->getId();
+            data["collection"]["name"] = finalCollection->getName();
+            data["collection"]["description"] = finalCollection->getDescription();
+            data["collection"]["userId"] = finalCollection->getUserId();
+            data["collection"]["privacySettings"] = finalCollection->getPrivacySettings();
+            data["collection"]["createdAt"] = finalCollection->getCreatedAt();
+            data["collection"]["updatedAt"] = finalCollection->getUpdatedAt();
+
+            // Get recipe count
+            int recipeCount = collectionManager->getCollectionRecipeCount(collectionId);
+            data["collection"]["recipeCount"] = recipeCount;
+
+            res = createSuccessResponse(data);
+        } catch (const std::exception& e) {
+            res = createErrorResponse("Failed to update collection: " + std::string(e.what()), 500);
+        }
+        res.end();
+    });
+
+    // DELETE /api/collections/<id> - Delete collection
+    CROW_ROUTE(app, "/api/collections/<string>")
+    .methods("DELETE"_method)
+    ([&collectionManager, &authService, &createSuccessResponse, &createErrorResponse](const crow::request& req, crow::response& res, std::string collectionIdStr) {
+        try {
+            // Extract and validate JWT token
+            auto authHeader = req.get_header_value("Authorization");
+            if (authHeader.empty() || authHeader.substr(0, 7) != "Bearer ") {
+                res = createErrorResponse("Missing or invalid authorization header", 401);
+                res.end();
+                return;
+            }
+
+            std::string token = authHeader.substr(7);
+            auto authResult = authService->validateToken(token);
+            if (!authResult.authenticated) {
+                res = createErrorResponse(authResult.message, 401);
+                res.end();
+                return;
+            }
+
+            std::string userId = authResult.userId;
+
+            // Collection ID is already a string from the URL parameter
+            std::string collectionId = collectionIdStr;
+
+            // Check if collection exists and user owns it
+            auto existingCollection = collectionManager->getCollectionById(collectionId);
+            if (!existingCollection) {
+                res = createErrorResponse("Collection not found", 404);
+                res.end();
+                return;
+            }
+
+            if (existingCollection->getUserId() != userId) {
+                res = createErrorResponse("Access denied", 403);
+                res.end();
+                return;
+            }
+
+            // Delete collection
+            bool success = collectionManager->deleteCollection(collectionId);
+
+            if (!success) {
+                res = createErrorResponse("Failed to delete collection", 500);
+                res.end();
+                return;
+            }
+
+            crow::json::wvalue data;
+            data["message"] = "Collection deleted successfully";
+
+            res = createSuccessResponse(data);
+        } catch (const std::exception& e) {
+            res = createErrorResponse("Failed to delete collection: " + std::string(e.what()), 500);
+        }
+        res.end();
+    });
+
+    // POST /api/collections/<id>/recipes/<recipeId> - Add recipe to collection
+    CROW_ROUTE(app, "/api/collections/<string>/recipes/<string>")
+    .methods("POST"_method)
+    ([&collectionManager, &authService, &createSuccessResponse, &createErrorResponse](const crow::request& req, crow::response& res, std::string collectionIdStr, std::string recipeIdStr) {
+        try {
+            // Extract and validate JWT token
+            auto authHeader = req.get_header_value("Authorization");
+            if (authHeader.empty() || authHeader.substr(0, 7) != "Bearer ") {
+                res = createErrorResponse("Missing or invalid authorization header", 401);
+                res.end();
+                return;
+            }
+
+            std::string token = authHeader.substr(7);
+            auto authResult = authService->validateToken(token);
+            if (!authResult.authenticated) {
+                res = createErrorResponse(authResult.message, 401);
+                res.end();
+                return;
+            }
+
+            std::string userId = authResult.userId;
+
+            // IDs are already strings from URL parameters
+            std::string collectionId = collectionIdStr;
+            std::string recipeId = recipeIdStr;
+
+            // Check if collection exists and user owns it
+            auto collection = collectionManager->getCollectionById(collectionId);
+            if (!collection) {
+                res = createErrorResponse("Collection not found", 404);
+                res.end();
+                return;
+            }
+
+            if (collection->getUserId() != userId) {
+                res = createErrorResponse("Access denied", 403);
+                res.end();
+                return;
+            }
+
+            // Check if recipe exists (we'll assume it does for now, but in production you'd validate)
+            // Add recipe to collection
+            bool success = collectionManager->addRecipeToCollection(collectionId, recipeId);
+
+            if (!success) {
+                res = createErrorResponse("Failed to add recipe to collection", 500);
+                res.end();
+                return;
+            }
+
+            crow::json::wvalue data;
+            data["message"] = "Recipe added to collection successfully";
+            data["collectionId"] = collectionId;
+            data["recipeId"] = recipeId;
+
+            res = createSuccessResponse(data);
+        } catch (const std::exception& e) {
+            res = createErrorResponse("Failed to add recipe to collection: " + std::string(e.what()), 500);
+        }
+        res.end();
+    });
+
+    // DELETE /api/collections/<id>/recipes/<recipeId> - Remove recipe from collection
+    CROW_ROUTE(app, "/api/collections/<string>/recipes/<string>")
+    .methods("DELETE"_method)
+    ([&collectionManager, &authService, &createSuccessResponse, &createErrorResponse](const crow::request& req, crow::response& res, std::string collectionIdStr, std::string recipeIdStr) {
+        try {
+            // Extract and validate JWT token
+            auto authHeader = req.get_header_value("Authorization");
+            if (authHeader.empty() || authHeader.substr(0, 7) != "Bearer ") {
+                res = createErrorResponse("Missing or invalid authorization header", 401);
+                res.end();
+                return;
+            }
+
+            std::string token = authHeader.substr(7);
+            auto authResult = authService->validateToken(token);
+            if (!authResult.authenticated) {
+                res = createErrorResponse(authResult.message, 401);
+                res.end();
+                return;
+            }
+
+            std::string userId = authResult.userId;
+
+            // IDs are already strings from URL parameters
+            std::string collectionId = collectionIdStr;
+            std::string recipeId = recipeIdStr;
+
+            // Check if collection exists and user owns it
+            auto collection = collectionManager->getCollectionById(collectionId);
+            if (!collection) {
+                res = createErrorResponse("Collection not found", 404);
+                res.end();
+                return;
+            }
+
+            if (collection->getUserId() != userId) {
+                res = createErrorResponse("Access denied", 403);
+                res.end();
+                return;
+            }
+
+            // Remove recipe from collection
+            bool success = collectionManager->removeRecipeFromCollection(collectionId, recipeId);
+
+            if (!success) {
+                res = createErrorResponse("Failed to remove recipe from collection", 500);
+                res.end();
+                return;
+            }
+
+            crow::json::wvalue data;
+            data["message"] = "Recipe removed from collection successfully";
+            data["collectionId"] = collectionId;
+            data["recipeId"] = recipeId;
+
+            res = createSuccessResponse(data);
+        } catch (const std::exception& e) {
+            res = createErrorResponse("Failed to remove recipe from collection: " + std::string(e.what()), 500);
         }
         res.end();
     });

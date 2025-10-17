@@ -10,14 +10,19 @@ UserManager::UserManager(sqlite3* db) : db_(db) {
 
 bool UserManager::createUser(const User& user) {
     const std::string query = R"(
-        INSERT INTO users (id, email, password_hash, created_at, updated_at, is_active)
-        VALUES (?, ?, ?, datetime('now'), datetime('now'), 1)
+        INSERT INTO users (id, email, password_hash, created_at, updated_at, is_active, name, bio, avatar_url, preferences, privacy_settings)
+        VALUES (?, ?, ?, datetime('now'), datetime('now'), 1, ?, ?, ?, ?, ?)
     )";
 
     std::vector<std::string> params = {
         user.getId(),
         user.getEmail(),
-        user.getPasswordHash()
+        user.getPasswordHash(),
+        user.getName(),
+        user.getBio(),
+        user.getAvatarUrl(),
+        user.getPreferences().dump(),
+        user.getPrivacySettings().dump()
     };
 
     return executeQuery(query, params);
@@ -25,7 +30,7 @@ bool UserManager::createUser(const User& user) {
 
 std::optional<User> UserManager::findUserById(const std::string& id) {
     const std::string query = R"(
-        SELECT id, email, password_hash, created_at, updated_at, is_active
+        SELECT id, email, password_hash, created_at, updated_at, is_active, name, bio, avatar_url, preferences, privacy_settings
         FROM users
         WHERE id = ?
     )";
@@ -55,7 +60,7 @@ std::optional<User> UserManager::findUserById(const std::string& id) {
 
 std::optional<User> UserManager::findUserByEmail(const std::string& email) {
     const std::string query = R"(
-        SELECT id, email, password_hash, created_at, updated_at, is_active
+        SELECT id, email, password_hash, created_at, updated_at, is_active, name, bio, avatar_url, preferences, privacy_settings
         FROM users
         WHERE email = ?
     )";
@@ -86,7 +91,8 @@ std::optional<User> UserManager::findUserByEmail(const std::string& email) {
 bool UserManager::updateUser(const User& user) {
     const std::string query = R"(
         UPDATE users
-        SET email = ?, password_hash = ?, updated_at = datetime('now'), is_active = ?
+        SET email = ?, password_hash = ?, updated_at = datetime('now'), is_active = ?,
+            name = ?, bio = ?, avatar_url = ?, preferences = ?, privacy_settings = ?
         WHERE id = ?
     )";
 
@@ -94,6 +100,11 @@ bool UserManager::updateUser(const User& user) {
         user.getEmail(),
         user.getPasswordHash(),
         user.isActive() ? "1" : "0",
+        user.getName(),
+        user.getBio(),
+        user.getAvatarUrl(),
+        user.getPreferences().dump(),
+        user.getPrivacySettings().dump(),
         user.getId()
     };
 
@@ -108,7 +119,8 @@ bool UserManager::deleteUser(const std::string& id) {
 
 std::vector<User> UserManager::getAllUsers() {
     const std::string query = R"(
-        SELECT id, email, password_hash, created_at, updated_at, is_active
+        SELECT id, email, password_hash, created_at, updated_at, is_active,
+               name, bio, avatar_url, preferences, privacy_settings
         FROM users
         ORDER BY created_at DESC
     )";
@@ -180,8 +192,19 @@ std::optional<User> UserManager::userFromRow(sqlite3_stmt* stmt) const {
         auto now = std::chrono::system_clock::now();
         bool isActive = sqlite3_column_int(stmt, 5) != 0;
 
-        // Use constructor that takes pre-hashed password
-        User user(id, email, passwordHash, now, now, isActive);
+        // Read profile fields
+        std::string name = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 6));
+        std::string bio = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 7));
+        std::string avatarUrl = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 8));
+        std::string preferencesStr = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 9));
+        std::string privacySettingsStr = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 10));
+
+        // Parse JSON fields
+        nlohmann::json preferences = nlohmann::json::parse(preferencesStr);
+        nlohmann::json privacySettings = nlohmann::json::parse(privacySettingsStr);
+
+        // Use constructor with all fields
+        User user(id, email, passwordHash, now, now, isActive, name, bio, avatarUrl, preferences, privacySettings);
 
         return user;
     } catch (const std::exception& e) {

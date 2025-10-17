@@ -30,8 +30,10 @@ void RecipeManagerSQLite::initializeDatabase() {
         "CREATE TABLE IF NOT EXISTS recipes ("
         "id TEXT PRIMARY KEY,"
         "data BLOB NOT NULL,"
+        "user_id TEXT,"
         "created_at DATETIME DEFAULT CURRENT_TIMESTAMP,"
-        "updated_at DATETIME DEFAULT CURRENT_TIMESTAMP"
+        "updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,"
+        "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL"
         ");";
 
     const char* createUsersTableSQL =
@@ -41,7 +43,34 @@ void RecipeManagerSQLite::initializeDatabase() {
         "password_hash TEXT NOT NULL,"
         "created_at DATETIME DEFAULT CURRENT_TIMESTAMP,"
         "updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,"
-        "is_active INTEGER DEFAULT 1"
+        "is_active INTEGER DEFAULT 1,"
+        "name TEXT DEFAULT '',"
+        "bio TEXT DEFAULT '',"
+        "avatar_url TEXT DEFAULT '',"
+        "preferences TEXT DEFAULT '{}',"
+        "privacy_settings TEXT DEFAULT '{}'"
+        ");";
+
+    const char* createCollectionsTableSQL =
+        "CREATE TABLE IF NOT EXISTS collections ("
+        "id TEXT PRIMARY KEY,"
+        "name TEXT NOT NULL,"
+        "description TEXT DEFAULT '',"
+        "user_id TEXT NOT NULL,"
+        "privacy_settings TEXT DEFAULT '{}',"
+        "created_at DATETIME DEFAULT CURRENT_TIMESTAMP,"
+        "updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,"
+        "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+        ");";
+
+    const char* createCollectionRecipesTableSQL =
+        "CREATE TABLE IF NOT EXISTS collection_recipes ("
+        "collection_id TEXT NOT NULL,"
+        "recipe_id TEXT NOT NULL,"
+        "added_at DATETIME DEFAULT CURRENT_TIMESTAMP,"
+        "PRIMARY KEY (collection_id, recipe_id),"
+        "FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE CASCADE,"
+        "FOREIGN KEY (recipe_id) REFERENCES recipes(id) ON DELETE CASCADE"
         ");";
 
     char* errMsg = nullptr;
@@ -57,6 +86,20 @@ void RecipeManagerSQLite::initializeDatabase() {
         std::string error = errMsg;
         sqlite3_free(errMsg);
         throw std::runtime_error("Failed to create users table: " + error);
+    }
+
+    rc = sqlite3_exec(static_cast<sqlite3*>(db_), createCollectionsTableSQL, nullptr, nullptr, &errMsg);
+    if (rc != SQLITE_OK) {
+        std::string error = errMsg;
+        sqlite3_free(errMsg);
+        throw std::runtime_error("Failed to create collections table: " + error);
+    }
+
+    rc = sqlite3_exec(static_cast<sqlite3*>(db_), createCollectionRecipesTableSQL, nullptr, nullptr, &errMsg);
+    if (rc != SQLITE_OK) {
+        std::string error = errMsg;
+        sqlite3_free(errMsg);
+        throw std::runtime_error("Failed to create collection_recipes table: " + error);
     }
 }
 

@@ -52,7 +52,7 @@ set(ASIO_INCLUDE_DIR ${CMAKE_BINARY_DIR}/_deps/asio-src/asio/include)
 FetchContent_Declare(
   crow
   GIT_REPOSITORY https://github.com/CrowCpp/Crow.git
-  GIT_TAG v1.1.0
+  GIT_TAG master
 )
 # Ensure Crow uses the same toolchain
 set(CROW_CMAKE_ARGS -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE})

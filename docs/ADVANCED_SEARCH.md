@@ -6,11 +6,38 @@ The Advanced Search and Filtering feature provides powerful search capabilities 
 
 ---
 
+## Authentication Requirements
+
+**Important:** As of Phase 2.3, the following recipe endpoints now require JWT authentication:
+
+- `POST /api/recipes` - Create new recipe (**requires authentication**)
+- `PUT /api/recipes/:title` - Update existing recipe (**requires authentication**)
+- `DELETE /api/recipes/:title` - Delete recipe (**requires authentication**)
+
+To access these protected endpoints:
+1. Register a user account via `POST /api/auth/register`
+2. Login via `POST /api/auth/login` to receive a JWT token
+3. Include the token in the `Authorization` header: `Bearer <token>`
+
+**Example:**
+```bash
+curl -X POST http://localhost:8080/api/recipes \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
+  -d '{"title":"My Recipe", ...}'
+```
+
+**Note:** Read operations (GET requests) do not require authentication.
+
+---
+
 ## Backend API
 
 ### Endpoint: `/api/recipes/advanced-search`
 
 **Method:** GET
+
+**Authentication:** Not required
 
 **Description:** Search recipes with multiple filtering criteria and sorting options.
 

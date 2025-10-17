@@ -7,6 +7,7 @@
 #include "userManager.h"
 #include "jwtService.h"
 #include "authService.h"
+#include "jwtMiddleware.h"
 #include <iostream>
 #include <string>
 #include <vector>
@@ -277,6 +278,68 @@ int main() {
             res = createSuccessResponse(data);
         } catch (const std::exception& e) {
             res = createErrorResponse(std::string("Failed to search recipes: ") + e.what(), 500);
+        }
+        res.end();
+    });
+
+    // GET /api/recipes/advanced-search - Advanced search with multiple criteria
+    CROW_ROUTE(app, "/api/recipes/advanced-search")
+    .methods("GET"_method)
+    ([&manager, &createErrorResponse, &createSuccessResponse](const crow::request& req, crow::response& res) {
+        try {
+            RecipeManagerSQLite::SearchCriteria criteria;
+            
+            // Extract query parameters
+            if (req.url_params.get("q")) {
+                criteria.query = req.url_params.get("q");
+            }
+            if (req.url_params.get("category")) {
+                criteria.category = req.url_params.get("category");
+            }
+            if (req.url_params.get("type")) {
+                criteria.type = req.url_params.get("type");
+            }
+            if (req.url_params.get("cookTimeMax")) {
+                criteria.cookTimeMax = req.url_params.get("cookTimeMax");
+            }
+            if (req.url_params.get("servingSizeMin")) {
+                criteria.servingSizeMin = req.url_params.get("servingSizeMin");
+            }
+            if (req.url_params.get("servingSizeMax")) {
+                criteria.servingSizeMax = req.url_params.get("servingSizeMax");
+            }
+            if (req.url_params.get("ingredient")) {
+                criteria.ingredient = req.url_params.get("ingredient");
+            }
+            if (req.url_params.get("sortBy")) {
+                criteria.sortBy = req.url_params.get("sortBy");
+            }
+            if (req.url_params.get("sortOrder")) {
+                criteria.sortOrder = req.url_params.get("sortOrder");
+            }
+
+            auto recipes = manager.advancedSearch(criteria);
+
+            crow::json::wvalue data;
+            crow::json::wvalue recipes_json = crow::json::wvalue::list();
+            for (size_t i = 0; i < recipes.size(); ++i) {
+                crow::json::wvalue recipe_json;
+                recipe_json["id"] = recipes[i].getId();
+                recipe_json["title"] = recipes[i].getTitle();
+                recipe_json["ingredients"] = recipes[i].getIngredients();
+                recipe_json["instructions"] = recipes[i].getInstructions();
+                recipe_json["servingSize"] = recipes[i].getServingSize();
+                recipe_json["cookTime"] = recipes[i].getCookTime();
+                recipe_json["category"] = recipes[i].getCategory();
+                recipe_json["type"] = recipes[i].getType();
+                recipes_json[i] = std::move(recipe_json);
+            }
+            data["recipes"] = std::move(recipes_json);
+            data["count"] = recipes.size();
+
+            res = createSuccessResponse(data);
+        } catch (const std::exception& e) {
+            res = createErrorResponse(std::string("Failed to perform advanced search: ") + e.what(), 500);
         }
         res.end();
     });
@@ -611,10 +674,18 @@ int main() {
         res.end();
     });
 
-    // POST /api/recipes - Add a new recipe
+    // POST /api/recipes - Add a new recipe (PROTECTED - requires authentication)
     CROW_ROUTE(app, "/api/recipes")
     .methods("POST"_method)
-    ([&manager, &createErrorResponse, &createSuccessResponse](const crow::request& req, crow::response& res) {
+    ([&manager, &jwtService, &createErrorResponse, &createSuccessResponse](const crow::request& req, crow::response& res) {
+        // JWT Authentication - validate token
+        auto authResult = JWTMiddleware::validateRequest(req, jwtService);
+        if (!authResult.authenticated) {
+            res = JWTMiddleware::createAuthErrorResponse(authResult.error);
+            res.end();
+            return;
+        }
+        
         try {
             auto json_body = crow::json::load(req.body);
 
@@ -643,6 +714,7 @@ int main() {
                 crow::json::wvalue data;
                 data["message"] = "Recipe added successfully";
                 data["title"] = title;
+                data["userId"] = authResult.userId;  // Include userId in response
                 res = createSuccessResponse(data);
             } else {
                 res = createErrorResponse("Failed to add recipe to database", 500);
@@ -655,10 +727,18 @@ int main() {
         res.end();
     });
 
-    // PUT /api/recipes/<string> - Update a recipe
+    // PUT /api/recipes/<string> - Update a recipe (PROTECTED - requires authentication)
     CROW_ROUTE(app, "/api/recipes/<string>")
     .methods("PUT"_method)
-    ([&manager, &createErrorResponse, &createSuccessResponse](const crow::request& req, crow::response& res, const std::string& title) {
+    ([&manager, &jwtService, &createErrorResponse, &createSuccessResponse](const crow::request& req, crow::response& res, const std::string& title) {
+        // JWT Authentication - validate token
+        auto authResult = JWTMiddleware::validateRequest(req, jwtService);
+        if (!authResult.authenticated) {
+            res = JWTMiddleware::createAuthErrorResponse(authResult.error);
+            res.end();
+            return;
+        }
+        
         try {
             auto json_body = crow::json::load(req.body);
 
@@ -688,6 +768,7 @@ int main() {
                 data["message"] = "Recipe updated successfully";
                 data["oldTitle"] = title;
                 data["newTitle"] = newTitle;
+                data["userId"] = authResult.userId;  // Include userId in response
                 res = createSuccessResponse(data);
             } else {
                 res = createErrorResponse("Recipe not found or update failed", 404);
@@ -700,10 +781,18 @@ int main() {
         res.end();
     });
 
-    // DELETE /api/recipes/<string> - Delete a recipe
+    // DELETE /api/recipes/<string> - Delete a recipe (PROTECTED - requires authentication)
     CROW_ROUTE(app, "/api/recipes/<string>")
     .methods("DELETE"_method)
-    ([&manager, &createErrorResponse, &createSuccessResponse](const crow::request& req, crow::response& res, const std::string& title) {
+    ([&manager, &jwtService, &createErrorResponse, &createSuccessResponse](const crow::request& req, crow::response& res, const std::string& title) {
+        // JWT Authentication - validate token
+        auto authResult = JWTMiddleware::validateRequest(req, jwtService);
+        if (!authResult.authenticated) {
+            res = JWTMiddleware::createAuthErrorResponse(authResult.error);
+            res.end();
+            return;
+        }
+        
         try {
             bool success = manager.deleteRecipe(title);
 

@@ -20,7 +20,7 @@ if(DEFINED ENV{VCPKG_ROOT})
     endif()
 endif()
 
-set(CMAKE_CXX_STANDARD 17) # Set the C++ standard to C++17
+set(CMAKE_CXX_STANDARD 20) # Set the C++ standard to C++20
 
 project(RecipeForADisaster)
 
@@ -54,9 +54,6 @@ FetchContent_Declare(
   GIT_REPOSITORY https://github.com/CrowCpp/Crow.git
   GIT_TAG master
 )
-# Ensure Crow uses the same toolchain
-set(CROW_CMAKE_ARGS -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE})
-FetchContent_MakeAvailable(crow)
 # Ensure Crow uses the same toolchain
 set(CROW_CMAKE_ARGS -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE})
 FetchContent_MakeAvailable(crow)
@@ -139,7 +136,7 @@ file(GLOB SOURCES "src/*.cpp")
 add_executable(RecipeForADisaster src/main_sqlite.cpp src/recipeManagerSQLite.cpp src/recipe.cpp src/jwtService.cpp src/authService.cpp src/user.cpp src/userManager.cpp src/aiService.cpp src/vaultService.cpp src/vault_client.cpp src/common_utils.cpp)
 
 # Create web server executable
-add_executable(web_server src/web_server.cpp src/recipeManagerSQLite.cpp src/recipe.cpp src/user.cpp src/userManager.cpp src/jwtService.cpp src/authService.cpp src/aiService.cpp src/vaultService.cpp src/vault_client.cpp src/common_utils.cpp)
+add_executable(web_server src/web_server.cpp src/recipeManagerSQLite.cpp src/recipe.cpp src/user.cpp src/userManager.cpp src/jwtService.cpp src/authService.cpp src/jwtMiddleware.cpp src/aiService.cpp src/vaultService.cpp src/vault_client.cpp src/common_utils.cpp)
 
 # Create test executables
 add_executable(integration_tests tests/test_integration.cpp src/recipe.cpp src/recipeManagerSQLite.cpp src/user.cpp src/userManager.cpp src/jwtService.cpp src/authService.cpp src/vaultService.cpp src/vault_client.cpp src/common_utils.cpp)
@@ -170,10 +167,9 @@ target_link_libraries(integration_tests ${DATABASE_LIBRARIES} CURL::libcurl nloh
 target_link_libraries(ai_service_tests ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json OpenSSL::SSL OpenSSL::Crypto)
 target_link_libraries(vault_tests CURL::libcurl nlohmann_json::nlohmann_json)
 target_link_libraries(unit_tests ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json GTest::gtest_main OpenSSL::SSL OpenSSL::Crypto)
+target_link_libraries(unit_tests ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json GTest::gtest_main OpenSSL::SSL OpenSSL::Crypto)
 
 # Test executable needs the same include directories
-target_include_directories(integration_tests PRIVATE include)
-target_include_directories(ai_service_tests PRIVATE include)
 target_include_directories(integration_tests PRIVATE include)
 target_include_directories(ai_service_tests PRIVATE include)
 target_include_directories(ai_service_tests PRIVATE ${CMAKE_BINARY_DIR}/_deps/nlohmann_json-src/include)
@@ -189,8 +185,6 @@ target_include_directories(web_server PRIVATE ${CMAKE_BINARY_DIR}/_deps/nlohmann
 target_include_directories(web_server PRIVATE ${CMAKE_BINARY_DIR}/_deps/crow-src/include)
 target_include_directories(web_server PRIVATE ${CMAKE_BINARY_DIR}/_deps/asio-src/asio/include)
 target_include_directories(web_server PRIVATE ${jwt_cpp_SOURCE_DIR}/include)
-target_include_directories(vault_tests PRIVATE include)
-target_include_directories(vault_tests PRIVATE ${CMAKE_BINARY_DIR}/_deps/nlohmann_json-src/include)
 target_include_directories(unit_tests PRIVATE ${jwt_cpp_SOURCE_DIR}/include)
 
 # Add tests

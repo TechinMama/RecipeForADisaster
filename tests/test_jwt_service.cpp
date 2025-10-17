@@ -3,13 +3,7 @@
 
 class JwtServiceTest : public ::testing::Test {
 protected:
-    JwtService::Config config_{
-        .secret = "unit-test-secret",
-        .issuer = "TestIssuer",
-        .audience = "TestAudience",
-        .accessTokenLifetime = std::chrono::seconds(600)
-    };
-
+    JwtService::Config config_{.secret = "unit-test-secret", .issuer = "TestIssuer", .audience = "TestAudience", .accessTokenLifetime = std::chrono::seconds(600)};
     JwtService service_{config_};
 };
 

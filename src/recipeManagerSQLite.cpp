@@ -913,7 +913,7 @@ std::unique_ptr<RecipeManagerSQLite::Review> RecipeManagerSQLite::getReview(cons
         review->rating = sqlite3_column_int(stmt, 3);
         review->reviewText = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4));
         review->status = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5));
-        review->moderationReason = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 6)) ?: "";
+        review->moderationReason = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 6)) ? reinterpret_cast<const char*>(sqlite3_column_text(stmt, 6)) : "";
         review->helpfulVotes = sqlite3_column_int(stmt, 7);
         review->createdAt = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 8));
         review->updatedAt = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 9));
@@ -957,7 +957,7 @@ std::vector<RecipeManagerSQLite::Review> RecipeManagerSQLite::getReviewsByRecipe
         review.rating = sqlite3_column_int(stmt, 3);
         review.reviewText = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4));
         review.status = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5));
-        review.moderationReason = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 6)) ?: "";
+        review.moderationReason = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 6)) ? reinterpret_cast<const char*>(sqlite3_column_text(stmt, 6)) : "";
         review.helpfulVotes = sqlite3_column_int(stmt, 7);
         review.createdAt = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 8));
         review.updatedAt = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 9));
@@ -991,7 +991,7 @@ std::vector<RecipeManagerSQLite::Review> RecipeManagerSQLite::getReviewsByUser(c
         review.rating = sqlite3_column_int(stmt, 3);
         review.reviewText = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4));
         review.status = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5));
-        review.moderationReason = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 6)) ?: "";
+        review.moderationReason = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 6)) ? reinterpret_cast<const char*>(sqlite3_column_text(stmt, 6)) : "";
         review.helpfulVotes = sqlite3_column_int(stmt, 7);
         review.createdAt = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 8));
         review.updatedAt = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 9));
@@ -1023,7 +1023,7 @@ std::vector<RecipeManagerSQLite::Review> RecipeManagerSQLite::getPendingReviews(
         review.rating = sqlite3_column_int(stmt, 3);
         review.reviewText = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4));
         review.status = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5));
-        review.moderationReason = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 6)) ?: "";
+        review.moderationReason = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 6)) ? reinterpret_cast<const char*>(sqlite3_column_text(stmt, 6)) : "";
         review.helpfulVotes = sqlite3_column_int(stmt, 7);
         review.createdAt = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 8));
         review.updatedAt = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 9));

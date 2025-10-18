@@ -69,17 +69,19 @@ jobs:
       shell: bash
       run: |
         cd vcpkg
+        # Copy manifest file to vcpkg directory for manifest mode
+        cp ${{ github.workspace }}/vcpkg.json .
         if [ "$RUNNER_OS" == "Windows" ]; then
-          ./vcpkg.exe install --triplet x64-windows --x-manifest-root=${{ github.workspace }}
+          ./vcpkg.exe install --triplet x64-windows
           ./vcpkg.exe integrate install
           echo "VCPKG_ROOT=$GITHUB_WORKSPACE/vcpkg" >> $GITHUB_ENV
           echo "VCPKG_TARGET_TRIPLET=x64-windows" >> $GITHUB_ENV
         elif [ "$RUNNER_OS" == "macOS" ]; then
-          ./vcpkg install --triplet x64-osx --x-manifest-root=${{ github.workspace }}
+          ./vcpkg install --triplet x64-osx
           echo "VCPKG_ROOT=$GITHUB_WORKSPACE/vcpkg" >> $GITHUB_ENV
           echo "VCPKG_TARGET_TRIPLET=x64-osx" >> $GITHUB_ENV
         else
-          ./vcpkg install --triplet x64-linux --x-manifest-root=${{ github.workspace }}
+          ./vcpkg install --triplet x64-linux
           echo "VCPKG_ROOT=$GITHUB_WORKSPACE/vcpkg" >> $GITHUB_ENV
           echo "VCPKG_TARGET_TRIPLET=x64-linux" >> $GITHUB_ENV
         fi

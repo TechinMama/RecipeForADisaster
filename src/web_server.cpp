@@ -24,8 +24,11 @@ std::string getDatabasePath(const std::string& envVar, const std::string& defaul
         return std::string(envPath);
     }
 
-    // Fallback to $HOME/.recipeforadisaster/ directory
-    const char* homeDir = std::getenv("HOME");
+    // Fallback to user home directory
+    const char* homeDir = std::getenv("HOME"); // Unix/Linux/macOS
+    if (!homeDir) {
+        homeDir = std::getenv("USERPROFILE"); // Windows
+    }
     if (homeDir) {
         std::filesystem::path dataDir = std::filesystem::path(homeDir) / ".recipeforadisaster";
         try {

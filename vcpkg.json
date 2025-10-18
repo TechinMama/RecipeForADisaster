@@ -12,6 +12,7 @@
     "sqlite3",
     "azure-core-cpp",
     "nlohmann-json",
-    "zlib"
+    "zlib",
+    "gtest"
   ]
 }

@@ -59,24 +59,30 @@ set(CROW_CMAKE_ARGS -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE})
 FetchContent_MakeAvailable(crow)
 
 # Add Azure SDK for C++
-FetchContent_Declare(
-  azure-sdk-cpp
-  GIT_REPOSITORY https://github.com/Azure/azure-sdk-for-cpp.git
-  GIT_TAG azure-core_1.10.3
-  SOURCE_SUBDIR sdk/core/azure-core
-)
-FetchContent_MakeAvailable(azure-sdk-cpp)
+find_package(azure-core-cpp QUIET)
+if(NOT azure-core-cpp_FOUND)
+    FetchContent_Declare(
+      azure-sdk-cpp
+      GIT_REPOSITORY https://github.com/Azure/azure-sdk-for-cpp.git
+      GIT_TAG azure-core_1.10.3
+      SOURCE_SUBDIR sdk/core/azure-core
+    )
+    FetchContent_MakeAvailable(azure-sdk-cpp)
+endif()
 
 # Find libcurl for HTTP requests (already available from Azure SDK)
 find_package(CURL REQUIRED)
 
 # Add nlohmann/json for JSON parsing
-FetchContent_Declare(
-  nlohmann_json
-  GIT_REPOSITORY https://github.com/nlohmann/json.git
-  GIT_TAG v3.11.2
-)
-FetchContent_MakeAvailable(nlohmann_json)
+find_package(nlohmann_json QUIET)
+if(NOT nlohmann_json_FOUND)
+    FetchContent_Declare(
+      nlohmann_json
+      GIT_REPOSITORY https://github.com/nlohmann/json.git
+      GIT_TAG v3.11.2
+    )
+    FetchContent_MakeAvailable(nlohmann_json)
+endif()
 
 # Add jwt-cpp for JSON Web Token support
 FetchContent_Declare(
@@ -87,14 +93,17 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(jwt_cpp)
 
 # Add Google Test for unit testing
-FetchContent_Declare(
-  googletest
-  GIT_REPOSITORY https://github.com/google/googletest.git
-  GIT_TAG v1.14.0
-)
-# Prevent overriding the parent project's compiler/linker on Windows
-set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(googletest)
+find_package(GTest QUIET)
+if(NOT GTest_FOUND)
+    FetchContent_Declare(
+      googletest
+      GIT_REPOSITORY https://github.com/google/googletest.git
+      GIT_TAG v1.14.0
+    )
+    # Prevent overriding the parent project's compiler/linker on Windows
+    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(googletest)
+endif()
 
 # Add HashiCorp Vault C++ client
 # Using a simple HTTP-based implementation instead of external library
@@ -163,13 +172,21 @@ add_executable(unit_tests
 )
 
 # Link libraries
-target_link_libraries(RecipeForADisaster ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json OpenSSL::SSL OpenSSL::Crypto)
-target_link_libraries(web_server ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json Crow::Crow OpenSSL::SSL OpenSSL::Crypto)
-target_link_libraries(integration_tests ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json OpenSSL::SSL OpenSSL::Crypto)
-target_link_libraries(ai_service_tests ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json OpenSSL::SSL OpenSSL::Crypto)
-target_link_libraries(vault_tests CURL::libcurl nlohmann_json::nlohmann_json)
-target_link_libraries(unit_tests ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json GTest::gtest_main OpenSSL::SSL OpenSSL::Crypto)
-target_link_libraries(unit_tests ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json GTest::gtest_main OpenSSL::SSL OpenSSL::Crypto)
+if(WIN32)
+    target_link_libraries(RecipeForADisaster ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json OpenSSL::SSL OpenSSL::Crypto ws2_32 crypt32)
+    target_link_libraries(web_server ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json Crow::Crow OpenSSL::SSL OpenSSL::Crypto ws2_32 crypt32)
+    target_link_libraries(integration_tests ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json OpenSSL::SSL OpenSSL::Crypto ws2_32 crypt32)
+    target_link_libraries(ai_service_tests ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json OpenSSL::SSL OpenSSL::Crypto ws2_32 crypt32)
+    target_link_libraries(vault_tests CURL::libcurl nlohmann_json::nlohmann_json ws2_32 crypt32)
+    target_link_libraries(unit_tests ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json GTest::gtest_main OpenSSL::SSL OpenSSL::Crypto ws2_32 crypt32)
+else()
+    target_link_libraries(RecipeForADisaster ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json OpenSSL::SSL OpenSSL::Crypto)
+    target_link_libraries(web_server ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json Crow::Crow OpenSSL::SSL OpenSSL::Crypto)
+    target_link_libraries(integration_tests ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json OpenSSL::SSL OpenSSL::Crypto)
+    target_link_libraries(ai_service_tests ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json OpenSSL::SSL OpenSSL::Crypto)
+    target_link_libraries(vault_tests CURL::libcurl nlohmann_json::nlohmann_json)
+    target_link_libraries(unit_tests ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json GTest::gtest_main OpenSSL::SSL OpenSSL::Crypto)
+endif()
 
 # Test executable needs the same include directories
 target_include_directories(integration_tests PRIVATE include)

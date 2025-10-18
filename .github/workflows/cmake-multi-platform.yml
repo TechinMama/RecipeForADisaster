@@ -70,16 +70,16 @@ jobs:
       run: |
         cd vcpkg
         if [ "$RUNNER_OS" == "Windows" ]; then
-          ./vcpkg.exe install --triplet x64-windows
+          ./vcpkg.exe install --triplet x64-windows --x-manifest-root=${{ github.workspace }}
           ./vcpkg.exe integrate install
           echo "VCPKG_ROOT=$GITHUB_WORKSPACE/vcpkg" >> $GITHUB_ENV
           echo "VCPKG_TARGET_TRIPLET=x64-windows" >> $GITHUB_ENV
         elif [ "$RUNNER_OS" == "macOS" ]; then
-          ./vcpkg install --triplet x64-osx
+          ./vcpkg install --triplet x64-osx --x-manifest-root=${{ github.workspace }}
           echo "VCPKG_ROOT=$GITHUB_WORKSPACE/vcpkg" >> $GITHUB_ENV
           echo "VCPKG_TARGET_TRIPLET=x64-osx" >> $GITHUB_ENV
         else
-          ./vcpkg install --triplet x64-linux
+          ./vcpkg install --triplet x64-linux --x-manifest-root=${{ github.workspace }}
           echo "VCPKG_ROOT=$GITHUB_WORKSPACE/vcpkg" >> $GITHUB_ENV
           echo "VCPKG_TARGET_TRIPLET=x64-linux" >> $GITHUB_ENV
         fi
@@ -116,4 +116,10 @@ jobs:
 
     - name: Show Test Output on Failure
       if: failure()
-      run: cat ${{ steps.strings.outputs.build-output-dir }}/Testing/Temporary/LastTest.log || echo "No detailed test log found"
+      shell: bash
+      run: |
+        if [ "$RUNNER_OS" == "Windows" ]; then
+          Get-Content ${{ steps.strings.outputs.build-output-dir }}/Testing/Temporary/LastTest.log 2>$null || echo "No detailed test log found"
+        else
+          cat ${{ steps.strings.outputs.build-output-dir }}/Testing/Temporary/LastTest.log 2>/dev/null || echo "No detailed test log found"
+        fi

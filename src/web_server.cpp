@@ -1532,6 +1532,665 @@ int main() {
         res.end();
     });
 
+    // ===== RATING AND REVIEW ENDPOINTS =====
+
+    // POST /api/recipes/<id>/rating - Add or update rating for a recipe
+    CROW_ROUTE(app, "/api/recipes/<string>/rating")
+    .methods("POST"_method)
+    ([&manager, &authService, &createSuccessResponse, &createErrorResponse](const crow::request& req, crow::response& res, std::string recipeId) {
+        try {
+            // Extract and validate JWT token
+            auto authHeader = req.get_header_value("Authorization");
+            if (authHeader.empty() || authHeader.substr(0, 7) != "Bearer ") {
+                res = createErrorResponse("Missing or invalid authorization header", 401);
+                res.end();
+                return;
+            }
+
+            std::string token = authHeader.substr(7);
+            auto authResult = authService->validateToken(token);
+            if (!authResult.authenticated) {
+                res = createErrorResponse(authResult.message, 401);
+                res.end();
+                return;
+            }
+
+            std::string userId = authResult.userId;
+
+            // Parse request body
+            auto body = crow::json::load(req.body);
+            if (!body) {
+                res = createErrorResponse("Invalid JSON", 400);
+                res.end();
+                return;
+            }
+
+            if (!body.has("rating")) {
+                res = createErrorResponse("Rating is required", 400);
+                res.end();
+                return;
+            }
+
+            int rating = body["rating"].i();
+            if (rating < 1 || rating > 5) {
+                res = createErrorResponse("Rating must be between 1 and 5", 400);
+                res.end();
+                return;
+            }
+
+            // Add or update rating
+            bool success = manager.addOrUpdateRating(recipeId, userId, rating);
+            if (!success) {
+                res = createErrorResponse("Failed to save rating", 500);
+                res.end();
+                return;
+            }
+
+            // Get updated average rating
+            double avgRating = manager.getAverageRating(recipeId);
+            int ratingCount = manager.getRatingCount(recipeId);
+
+            crow::json::wvalue data;
+            data["message"] = "Rating saved successfully";
+            data["recipeId"] = recipeId;
+            data["rating"] = rating;
+            data["averageRating"] = avgRating;
+            data["ratingCount"] = ratingCount;
+
+            res = createSuccessResponse(data);
+        } catch (const std::exception& e) {
+            res = createErrorResponse("Failed to save rating: " + std::string(e.what()), 500);
+        }
+        res.end();
+    });
+
+    // GET /api/recipes/<id>/rating - Get user's rating for a recipe
+    CROW_ROUTE(app, "/api/recipes/<string>/rating")
+    .methods("GET"_method)
+    ([&manager, &authService, &createSuccessResponse, &createErrorResponse](const crow::request& req, crow::response& res, std::string recipeId) {
+        try {
+            // Extract and validate JWT token
+            auto authHeader = req.get_header_value("Authorization");
+            if (authHeader.empty() || authHeader.substr(0, 7) != "Bearer ") {
+                res = createErrorResponse("Missing or invalid authorization header", 401);
+                res.end();
+                return;
+            }
+
+            std::string token = authHeader.substr(7);
+            auto authResult = authService->validateToken(token);
+            if (!authResult.authenticated) {
+                res = createErrorResponse(authResult.message, 401);
+                res.end();
+                return;
+            }
+
+            std::string userId = authResult.userId;
+
+            // Get user's rating
+            auto rating = manager.getRating(recipeId, userId);
+            if (!rating) {
+                res = createErrorResponse("No rating found", 404);
+                res.end();
+                return;
+            }
+
+            crow::json::wvalue data;
+            data["recipeId"] = rating->recipeId;
+            data["userId"] = rating->userId;
+            data["rating"] = rating->rating;
+            data["createdAt"] = rating->createdAt;
+            data["updatedAt"] = rating->updatedAt;
+
+            res = createSuccessResponse(data);
+        } catch (const std::exception& e) {
+            res = createErrorResponse("Failed to get rating: " + std::string(e.what()), 500);
+        }
+        res.end();
+    });
+
+    // DELETE /api/recipes/<id>/rating - Delete user's rating for a recipe
+    CROW_ROUTE(app, "/api/recipes/<string>/rating")
+    .methods("DELETE"_method)
+    ([&manager, &authService, &createSuccessResponse, &createErrorResponse](const crow::request& req, crow::response& res, std::string recipeId) {
+        try {
+            // Extract and validate JWT token
+            auto authHeader = req.get_header_value("Authorization");
+            if (authHeader.empty() || authHeader.substr(0, 7) != "Bearer ") {
+                res = createErrorResponse("Missing or invalid authorization header", 401);
+                res.end();
+                return;
+            }
+
+            std::string token = authHeader.substr(7);
+            auto authResult = authService->validateToken(token);
+            if (!authResult.authenticated) {
+                res = createErrorResponse(authResult.message, 401);
+                res.end();
+                return;
+            }
+
+            std::string userId = authResult.userId;
+
+            // Delete rating
+            bool success = manager.deleteRating(recipeId, userId);
+            if (!success) {
+                res = createErrorResponse("Failed to delete rating", 500);
+                res.end();
+                return;
+            }
+
+            crow::json::wvalue data;
+            data["message"] = "Rating deleted successfully";
+            data["recipeId"] = recipeId;
+
+            res = createSuccessResponse(data);
+        } catch (const std::exception& e) {
+            res = createErrorResponse("Failed to delete rating: " + std::string(e.what()), 500);
+        }
+        res.end();
+    });
+
+    // GET /api/recipes/<id>/stats - Get rating statistics for a recipe
+    CROW_ROUTE(app, "/api/recipes/<string>/stats")
+    .methods("GET"_method)
+    ([&manager, &createSuccessResponse, &createErrorResponse](const crow::request& req, crow::response& res, std::string recipeId) {
+        try {
+            double avgRating = manager.getAverageRating(recipeId);
+            int ratingCount = manager.getRatingCount(recipeId);
+
+            crow::json::wvalue data;
+            data["recipeId"] = recipeId;
+            data["averageRating"] = avgRating;
+            data["ratingCount"] = ratingCount;
+
+            res = createSuccessResponse(data);
+        } catch (const std::exception& e) {
+            res = createErrorResponse("Failed to get rating stats: " + std::string(e.what()), 500);
+        }
+        res.end();
+    });
+
+    // POST /api/recipes/<id>/reviews - Add a review for a recipe
+    CROW_ROUTE(app, "/api/recipes/<string>/reviews")
+    .methods("POST"_method)
+    ([&manager, &authService, &createSuccessResponse, &createErrorResponse](const crow::request& req, crow::response& res, std::string recipeId) {
+        try {
+            // Extract and validate JWT token
+            auto authHeader = req.get_header_value("Authorization");
+            if (authHeader.empty() || authHeader.substr(0, 7) != "Bearer ") {
+                res = createErrorResponse("Missing or invalid authorization header", 401);
+                res.end();
+                return;
+            }
+
+            std::string token = authHeader.substr(7);
+            auto authResult = authService->validateToken(token);
+            if (!authResult.authenticated) {
+                res = createErrorResponse(authResult.message, 401);
+                res.end();
+                return;
+            }
+
+            std::string userId = authResult.userId;
+
+            // Parse request body
+            auto body = crow::json::load(req.body);
+            if (!body) {
+                res = createErrorResponse("Invalid JSON", 400);
+                res.end();
+                return;
+            }
+
+            if (!body.has("rating") || !body.has("reviewText")) {
+                res = createErrorResponse("Rating and review text are required", 400);
+                res.end();
+                return;
+            }
+
+            int rating = body["rating"].i();
+            std::string reviewText = body["reviewText"].s();
+
+            if (rating < 1 || rating > 5) {
+                res = createErrorResponse("Rating must be between 1 and 5", 400);
+                res.end();
+                return;
+            }
+
+            if (reviewText.length() > 500) {
+                res = createErrorResponse("Review text must be 500 characters or less", 400);
+                res.end();
+                return;
+            }
+
+            // Create review object
+            RecipeManagerSQLite::Review review;
+            review.recipeId = recipeId;
+            review.userId = userId;
+            review.rating = rating;
+            review.reviewText = reviewText;
+            review.status = "pending"; // Reviews start as pending for moderation
+
+            // Add review
+            bool success = manager.addReview(review);
+            if (!success) {
+                res = createErrorResponse("Failed to save review", 500);
+                res.end();
+                return;
+            }
+
+            crow::json::wvalue data;
+            data["message"] = "Review submitted successfully and is pending moderation";
+            data["recipeId"] = recipeId;
+            data["status"] = "pending";
+
+            res = createSuccessResponse(data);
+        } catch (const std::exception& e) {
+            res = createErrorResponse("Failed to save review: " + std::string(e.what()), 500);
+        }
+        res.end();
+    });
+
+    // GET /api/recipes/<id>/reviews - Get reviews for a recipe
+    CROW_ROUTE(app, "/api/recipes/<string>/reviews")
+    .methods("GET"_method)
+    ([&manager, &createSuccessResponse, &createErrorResponse](const crow::request& req, crow::response& res, std::string recipeId) {
+        try {
+            // Get query parameters
+            std::string sortBy = req.url_params.get("sort") ? req.url_params.get("sort") : "newest";
+            std::string status = req.url_params.get("status") ? req.url_params.get("status") : "approved";
+
+            // Convert sort parameter to enum
+            RecipeManagerSQLite::ReviewSortBy sortEnum;
+            if (sortBy == "oldest") sortEnum = RecipeManagerSQLite::ReviewSortBy::OLDEST;
+            else if (sortBy == "highest_rated") sortEnum = RecipeManagerSQLite::ReviewSortBy::HIGHEST_RATED;
+            else if (sortBy == "most_helpful") sortEnum = RecipeManagerSQLite::ReviewSortBy::MOST_HELPFUL;
+            else sortEnum = RecipeManagerSQLite::ReviewSortBy::NEWEST;
+
+            // Get sorted reviews
+            auto reviews = manager.getSortedReviewsByRecipe(recipeId, sortEnum, status);
+
+            crow::json::wvalue::list reviewList;
+            for (const auto& review : reviews) {
+                crow::json::wvalue reviewJson;
+                reviewJson["id"] = review.id;
+                reviewJson["recipeId"] = review.recipeId;
+                reviewJson["userId"] = review.userId;
+                reviewJson["rating"] = review.rating;
+                reviewJson["reviewText"] = review.reviewText;
+                reviewJson["status"] = review.status;
+                reviewJson["helpfulVotes"] = review.helpfulVotes;
+                reviewJson["createdAt"] = review.createdAt;
+                reviewJson["updatedAt"] = review.updatedAt;
+                reviewList.push_back(std::move(reviewJson));
+            }
+
+            crow::json::wvalue data;
+            data["reviews"] = std::move(reviewList);
+            data["count"] = reviews.size();
+            data["sortBy"] = sortBy;
+
+            res = createSuccessResponse(data);
+        } catch (const std::exception& e) {
+            res = createErrorResponse("Failed to get reviews: " + std::string(e.what()), 500);
+        }
+        res.end();
+    });
+
+    // PUT /api/reviews/<id> - Update a review (user can edit their own reviews)
+    CROW_ROUTE(app, "/api/reviews/<string>")
+    .methods("PUT"_method)
+    ([&manager, &authService, &createSuccessResponse, &createErrorResponse](const crow::request& req, crow::response& res, std::string reviewId) {
+        try {
+            // Extract and validate JWT token
+            auto authHeader = req.get_header_value("Authorization");
+            if (authHeader.empty() || authHeader.substr(0, 7) != "Bearer ") {
+                res = createErrorResponse("Missing or invalid authorization header", 401);
+                res.end();
+                return;
+            }
+
+            std::string token = authHeader.substr(7);
+            auto authResult = authService->validateToken(token);
+            if (!authResult.authenticated) {
+                res = createErrorResponse(authResult.message, 401);
+                res.end();
+                return;
+            }
+
+            std::string userId = authResult.userId;
+
+            // Get existing review
+            auto existingReview = manager.getReview(reviewId);
+            if (!existingReview) {
+                res = createErrorResponse("Review not found", 404);
+                res.end();
+                return;
+            }
+
+            // Check ownership
+            if (existingReview->userId != userId) {
+                res = createErrorResponse("Access denied", 403);
+                res.end();
+                return;
+            }
+
+            // Parse request body
+            auto body = crow::json::load(req.body);
+            if (!body) {
+                res = createErrorResponse("Invalid JSON", 400);
+                res.end();
+                return;
+            }
+
+            RecipeManagerSQLite::Review updatedReview = *existingReview;
+
+            if (body.has("rating")) {
+                int rating = body["rating"].i();
+                if (rating < 1 || rating > 5) {
+                    res = createErrorResponse("Rating must be between 1 and 5", 400);
+                    res.end();
+                    return;
+                }
+                updatedReview.rating = rating;
+            }
+
+            if (body.has("reviewText")) {
+                std::string reviewText = body["reviewText"].s();
+                if (reviewText.length() > 500) {
+                    res = createErrorResponse("Review text must be 500 characters or less", 400);
+                    res.end();
+                    return;
+                }
+                updatedReview.reviewText = reviewText;
+            }
+
+            // Update review
+            bool success = manager.updateReview(reviewId, updatedReview);
+            if (!success) {
+                res = createErrorResponse("Failed to update review", 500);
+                res.end();
+                return;
+            }
+
+            crow::json::wvalue data;
+            data["message"] = "Review updated successfully";
+            data["reviewId"] = reviewId;
+
+            res = createSuccessResponse(data);
+        } catch (const std::exception& e) {
+            res = createErrorResponse("Failed to update review: " + std::string(e.what()), 500);
+        }
+        res.end();
+    });
+
+    // DELETE /api/reviews/<id> - Delete a review (user can delete their own reviews)
+    CROW_ROUTE(app, "/api/reviews/<string>")
+    .methods("DELETE"_method)
+    ([&manager, &authService, &createSuccessResponse, &createErrorResponse](const crow::request& req, crow::response& res, std::string reviewId) {
+        try {
+            // Extract and validate JWT token
+            auto authHeader = req.get_header_value("Authorization");
+            if (authHeader.empty() || authHeader.substr(0, 7) != "Bearer ") {
+                res = createErrorResponse("Missing or invalid authorization header", 401);
+                res.end();
+                return;
+            }
+
+            std::string token = authHeader.substr(7);
+            auto authResult = authService->validateToken(token);
+            if (!authResult.authenticated) {
+                res = createErrorResponse(authResult.message, 401);
+                res.end();
+                return;
+            }
+
+            std::string userId = authResult.userId;
+
+            // Get existing review
+            auto existingReview = manager.getReview(reviewId);
+            if (!existingReview) {
+                res = createErrorResponse("Review not found", 404);
+                res.end();
+                return;
+            }
+
+            // Check ownership
+            if (existingReview->userId != userId) {
+                res = createErrorResponse("Access denied", 403);
+                res.end();
+                return;
+            }
+
+            // Delete review
+            bool success = manager.deleteReview(reviewId);
+            if (!success) {
+                res = createErrorResponse("Failed to delete review", 500);
+                res.end();
+                return;
+            }
+
+            crow::json::wvalue data;
+            data["message"] = "Review deleted successfully";
+            data["reviewId"] = reviewId;
+
+            res = createSuccessResponse(data);
+        } catch (const std::exception& e) {
+            res = createErrorResponse("Failed to delete review: " + std::string(e.what()), 500);
+        }
+        res.end();
+    });
+
+    // POST /api/reviews/<id>/vote - Vote on a review (helpful/not helpful)
+    CROW_ROUTE(app, "/api/reviews/<string>/vote")
+    .methods("POST"_method)
+    ([&manager, &authService, &createSuccessResponse, &createErrorResponse](const crow::request& req, crow::response& res, std::string reviewId) {
+        try {
+            // Extract and validate JWT token
+            auto authHeader = req.get_header_value("Authorization");
+            if (authHeader.empty() || authHeader.substr(0, 7) != "Bearer ") {
+                res = createErrorResponse("Missing or invalid authorization header", 401);
+                res.end();
+                return;
+            }
+
+            std::string token = authHeader.substr(7);
+            auto authResult = authService->validateToken(token);
+            if (!authResult.authenticated) {
+                res = createErrorResponse(authResult.message, 401);
+                res.end();
+                return;
+            }
+
+            std::string userId = authResult.userId;
+
+            // Parse request body
+            auto body = crow::json::load(req.body);
+            if (!body) {
+                res = createErrorResponse("Invalid JSON", 400);
+                res.end();
+                return;
+            }
+
+            if (!body.has("voteType")) {
+                res = createErrorResponse("voteType is required", 400);
+                res.end();
+                return;
+            }
+
+            std::string voteTypeStr = body["voteType"].s();
+            std::string voteType;
+            if (voteTypeStr == "helpful") {
+                voteType = "helpful";
+            } else if (voteTypeStr == "not_helpful") {
+                voteType = "not_helpful";
+            } else {
+                res = createErrorResponse("voteType must be 'helpful' or 'not_helpful'", 400);
+                res.end();
+                return;
+            }
+
+            // Check if review exists
+            auto review = manager.getReview(reviewId);
+            if (!review) {
+                res = createErrorResponse("Review not found", 404);
+                res.end();
+                return;
+            }
+
+            // Users cannot vote on their own reviews
+            if (review->userId == userId) {
+                res = createErrorResponse("Cannot vote on your own review", 400);
+                res.end();
+                return;
+            }
+
+            // Add or update vote
+            bool success = manager.addOrUpdateReviewVote(reviewId, userId, voteType);
+            if (!success) {
+                res = createErrorResponse("Failed to record vote", 500);
+                res.end();
+                return;
+            }
+
+            crow::json::wvalue data;
+            data["message"] = "Vote recorded successfully";
+            data["reviewId"] = reviewId;
+            data["voteType"] = voteTypeStr;
+
+            res = createSuccessResponse(data);
+        } catch (const std::exception& e) {
+            res = createErrorResponse("Failed to vote on review: " + std::string(e.what()), 500);
+        }
+        res.end();
+    });
+
+    // GET /api/reviews/pending - Get pending reviews for moderation (admin only)
+    CROW_ROUTE(app, "/api/reviews/pending")
+    ([&manager, &authService, &createSuccessResponse, &createErrorResponse](const crow::request& req, crow::response& res) {
+        try {
+            // Extract and validate JWT token
+            auto authHeader = req.get_header_value("Authorization");
+            if (authHeader.empty() || authHeader.substr(0, 7) != "Bearer ") {
+                res = createErrorResponse("Missing or invalid authorization header", 401);
+                res.end();
+                return;
+            }
+
+            std::string token = authHeader.substr(7);
+            auto authResult = authService->validateToken(token);
+            if (!authResult.authenticated) {
+                res = createErrorResponse(authResult.message, 401);
+                res.end();
+                return;
+            }
+
+            // TODO: Check if user is admin - for now, allow all authenticated users
+            // In a real implementation, you'd check user roles
+
+            // Get pending reviews
+            auto pendingReviews = manager.getPendingReviews();
+
+            crow::json::wvalue data;
+            data["reviews"] = crow::json::wvalue::list();
+
+            for (size_t i = 0; i < pendingReviews.size(); ++i) {
+                const auto& review = pendingReviews[i];
+                crow::json::wvalue reviewJson;
+                reviewJson["id"] = review.id;
+                reviewJson["recipeId"] = review.recipeId;
+                reviewJson["userId"] = review.userId;
+                reviewJson["rating"] = review.rating;
+                reviewJson["reviewText"] = review.reviewText;
+                reviewJson["status"] = review.status;
+                reviewJson["helpfulVotes"] = review.helpfulVotes;
+                reviewJson["createdAt"] = review.createdAt;
+                reviewJson["updatedAt"] = review.updatedAt;
+                data["reviews"][i] = std::move(reviewJson);
+            }
+
+            res = createSuccessResponse(data);
+        } catch (const std::exception& e) {
+            res = createErrorResponse("Failed to get pending reviews: " + std::string(e.what()), 500);
+        }
+        res.end();
+    });
+
+    // POST /api/reviews/<id>/moderate - Moderate a review (admin only)
+    CROW_ROUTE(app, "/api/reviews/<string>/moderate")
+    .methods("POST"_method)
+    ([&manager, &authService, &createSuccessResponse, &createErrorResponse](const crow::request& req, crow::response& res, std::string reviewId) {
+        try {
+            // Extract and validate JWT token
+            auto authHeader = req.get_header_value("Authorization");
+            if (authHeader.empty() || authHeader.substr(0, 7) != "Bearer ") {
+                res = createErrorResponse("Missing or invalid authorization header", 401);
+                res.end();
+                return;
+            }
+
+            std::string token = authHeader.substr(7);
+            auto authResult = authService->validateToken(token);
+            if (!authResult.authenticated) {
+                res = createErrorResponse(authResult.message, 401);
+                res.end();
+                return;
+            }
+
+            // TODO: Check if user is admin - for now, allow all authenticated users
+            // In a real implementation, you'd check user roles
+
+            // Parse request body
+            auto body = crow::json::load(req.body);
+            if (!body) {
+                res = createErrorResponse("Invalid JSON", 400);
+                res.end();
+                return;
+            }
+
+            if (!body.has("action")) {
+                res = createErrorResponse("action is required", 400);
+                res.end();
+                return;
+            }
+
+            std::string action = body["action"].s();
+            std::string newStatus;
+            std::string moderationReason = "";
+
+            if (action == "approve") {
+                newStatus = "approved";
+            } else if (action == "reject") {
+                newStatus = "rejected";
+                if (body.has("reason")) {
+                    moderationReason = body["reason"].s();
+                }
+            } else {
+                res = createErrorResponse("action must be 'approve' or 'reject'", 400);
+                res.end();
+                return;
+            }
+
+            // Moderate review
+            bool success = manager.moderateReview(reviewId, newStatus, moderationReason);
+            if (!success) {
+                res = createErrorResponse("Failed to moderate review", 500);
+                res.end();
+                return;
+            }
+
+            crow::json::wvalue data;
+            data["message"] = "Review moderated successfully";
+            data["reviewId"] = reviewId;
+            data["action"] = action;
+
+            res = createSuccessResponse(data);
+        } catch (const std::exception& e) {
+            res = createErrorResponse("Failed to moderate review: " + std::string(e.what()), 500);
+        }
+        res.end();
+    });
+
     // GET /api/ai/status - Check AI service status
     CROW_ROUTE(app, "/api/ai/status")
     .methods("GET"_method)
@@ -1902,6 +2561,17 @@ int main() {
     std::cout << "  PUT  /api/recipes/title - Update recipe" << std::endl;
     std::cout << "  DELETE /api/recipes/title - Delete recipe" << std::endl;
     std::cout << "  POST /api/recipes/generate - Generate recipe with AI" << std::endl;
+    std::cout << "  POST /api/recipes/<id>/rating - Submit/update rating" << std::endl;
+    std::cout << "  GET  /api/recipes/<id>/rating - Get user's rating" << std::endl;
+    std::cout << "  DELETE /api/recipes/<id>/rating - Delete user's rating" << std::endl;
+    std::cout << "  GET  /api/recipes/<id>/rating/stats - Get rating statistics" << std::endl;
+    std::cout << "  POST /api/recipes/<id>/reviews - Add review" << std::endl;
+    std::cout << "  GET  /api/recipes/<id>/reviews - Get reviews (with sorting)" << std::endl;
+    std::cout << "  PUT  /api/reviews/<id> - Update review" << std::endl;
+    std::cout << "  DELETE /api/reviews/<id> - Delete review" << std::endl;
+    std::cout << "  POST /api/reviews/<id>/vote - Vote on review" << std::endl;
+    std::cout << "  GET  /api/reviews/pending - Get pending reviews (admin)" << std::endl;
+    std::cout << "  POST /api/reviews/<id>/moderate - Moderate review (admin)" << std::endl;
     std::cout << "  GET  /api/ai/status - Check AI service status" << std::endl;
     std::cout << "  GET  /api/health - Health check" << std::endl;
     std::cout << "Web interface: http://localhost:8080" << std::endl;

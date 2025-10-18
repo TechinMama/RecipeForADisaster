@@ -84,8 +84,9 @@ void Collection::validatePrivacySettings(const std::string& privacySettings) con
     }
 
     try {
-        nlohmann::json::parse(privacySettings);
-    } catch (const std::exception& e) {
+        auto json = nlohmann::json::parse(privacySettings);
+        // Successfully parsed, validation passes
+    } catch (const std::exception&) {
         throw ValidationError("Privacy settings must be valid JSON");
     }
 }

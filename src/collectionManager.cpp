@@ -231,13 +231,13 @@ std::optional<Collection> CollectionManager::collectionFromRow(sqlite3_stmt* stm
             return std::nullopt;
         }
 
-        std::string id = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0)) ?: "";
-        std::string name = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)) ?: "";
-        std::string description = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2)) ?: "";
-        std::string userId = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3)) ?: "";
-        std::string privacySettings = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4)) ?: "{}";
-        std::string createdAt = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5)) ?: "";
-        std::string updatedAt = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 6)) ?: "";
+        std::string id = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0)) ? reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0)) : "";
+        std::string name = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)) ? reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)) : "";
+        std::string description = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2)) ? reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2)) : "";
+        std::string userId = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3)) ? reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3)) : "";
+        std::string privacySettings = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4)) ? reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4)) : "{}";
+        std::string createdAt = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5)) ? reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5)) : "";
+        std::string updatedAt = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 6)) ? reinterpret_cast<const char*>(sqlite3_column_text(stmt, 6)) : "";
 
         return Collection(name, description, userId, privacySettings, id, createdAt, updatedAt);
     } catch (const std::exception& e) {

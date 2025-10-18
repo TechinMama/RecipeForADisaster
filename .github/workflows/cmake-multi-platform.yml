@@ -70,7 +70,7 @@ jobs:
       run: |
         cd vcpkg
         # Copy manifest file to vcpkg directory for manifest mode
-        cp ${{ github.workspace }}/vcpkg.json .
+        cp "$GITHUB_WORKSPACE/vcpkg.json" .
         if [ "$RUNNER_OS" == "Windows" ]; then
           ./vcpkg.exe install --triplet x64-windows
           ./vcpkg.exe integrate install

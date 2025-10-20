@@ -180,18 +180,18 @@ add_executable(unit_tests
 # Link libraries
 if(WIN32)
     target_link_libraries(RecipeForADisaster ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json OpenSSL::SSL OpenSSL::Crypto ws2_32 crypt32 redis++::redis++_static)
-    target_link_libraries(web_server ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json Crow::Crow OpenSSL::SSL OpenSSL::Crypto ws2_32 crypt32 redis++::redis++_static)
+    target_link_libraries(web_server ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json Crow OpenSSL::SSL OpenSSL::Crypto ws2_32 crypt32 redis++::redis++_static)
     target_link_libraries(integration_tests ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json OpenSSL::SSL OpenSSL::Crypto ws2_32 crypt32 redis++::redis++_static)
     target_link_libraries(ai_service_tests ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json OpenSSL::SSL OpenSSL::Crypto ws2_32 crypt32 redis++::redis++_static)
     target_link_libraries(vault_tests CURL::libcurl nlohmann_json::nlohmann_json ws2_32 crypt32 redis++::redis++_static)
-    target_link_libraries(unit_tests ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json GTest::gtest_main OpenSSL::SSL OpenSSL::Crypto ws2_32 crypt32 redis++::redis++_static)
+    target_link_libraries(unit_tests ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json gtest_main OpenSSL::SSL OpenSSL::Crypto ws2_32 crypt32 redis++::redis++_static)
 else()
     target_link_libraries(RecipeForADisaster ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json OpenSSL::SSL OpenSSL::Crypto redis++::redis++_static)
-    target_link_libraries(web_server ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json Crow::Crow OpenSSL::SSL OpenSSL::Crypto redis++::redis++_static)
+    target_link_libraries(web_server ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json Crow OpenSSL::SSL OpenSSL::Crypto redis++::redis++_static)
     target_link_libraries(integration_tests ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json OpenSSL::SSL OpenSSL::Crypto redis++::redis++_static)
     target_link_libraries(ai_service_tests ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json OpenSSL::SSL OpenSSL::Crypto redis++::redis++_static)
     target_link_libraries(vault_tests CURL::libcurl nlohmann_json::nlohmann_json redis++::redis++_static)
-    target_link_libraries(unit_tests ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json GTest::gtest_main OpenSSL::SSL OpenSSL::Crypto redis++::redis++_static)
+    target_link_libraries(unit_tests ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json gtest_main OpenSSL::SSL OpenSSL::Crypto redis++::redis++_static)
 endif()
 
 # Test executable needs the same include directories

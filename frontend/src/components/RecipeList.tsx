@@ -10,6 +10,29 @@ interface RecipeListProps {
 }
 
 const RecipeList: React.FC<RecipeListProps> = ({ onEdit, onView, refreshTrigger }) => {
+  // IndexedDB helpers for offline caching
+  const OFFLINE_DB_NAME = 'RecipeOfflineDB';
+  const OFFLINE_DB_VERSION = 1;
+  const CACHED_RECIPES_STORE = 'cachedRecipes';
+
+  function openOfflineDB(): Promise<IDBDatabase> {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(OFFLINE_DB_NAME, OFFLINE_DB_VERSION);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async function getCachedRecipes(): Promise<Recipe[]> {
+    const db = await openOfflineDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction([CACHED_RECIPES_STORE], 'readonly');
+      const store = tx.objectStore(CACHED_RECIPES_STORE);
+      const req = store.getAll();
+      req.onsuccess = () => resolve(req.result as Recipe[]);
+      req.onerror = () => reject(req.error);
+    });
+  }
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -32,25 +55,33 @@ const RecipeList: React.FC<RecipeListProps> = ({ onEdit, onView, refreshTrigger 
     // Skip loading if using advanced search results
     if (useAdvancedSearch) return;
 
+    setLoading(true);
+    let data: Recipe[] = [];
     try {
-      setLoading(true);
-      let data: Recipe[];
-
-      if (searchQuery) {
-        data = await recipeApi.searchRecipes(searchQuery);
-      } else if (categoryFilter) {
-        data = await recipeApi.getRecipesByCategory(categoryFilter);
-      } else if (typeFilter) {
-        data = await recipeApi.getRecipesByType(typeFilter);
+      if (navigator.onLine) {
+        if (searchQuery) {
+          data = await recipeApi.searchRecipes(searchQuery);
+        } else if (categoryFilter) {
+          data = await recipeApi.getRecipesByCategory(categoryFilter);
+        } else if (typeFilter) {
+          data = await recipeApi.getRecipesByType(typeFilter);
+        } else {
+          data = await recipeApi.getAllRecipes();
+        }
       } else {
-        data = await recipeApi.getAllRecipes();
+        // Offline: try IndexedDB
+        try {
+          data = await getCachedRecipes();
+        } catch (e) {
+          setError('Offline and no cached recipes available');
+        }
       }
-
       setRecipes(data);
       setError(null);
     } catch (err) {
       setError('Failed to load recipes');
       console.error('Error loading recipes:', err);
+      setRecipes([]);
     } finally {
       setLoading(false);
     }

@@ -389,65 +389,71 @@ int main() {
     });
 
     // GET /api/health - Health check endpoint
-    CROW_ROUTE(app, "/api/health")
+    CROW_ROUTE(app, "/api/recipes/advanced-search")
     .methods("GET"_method)
-    ([&manager](const crow::request& req, crow::response& res) {
-        crow::json::wvalue health;
-        health["status"] = "healthy";
-        health["database"] = manager.isConnected() ? "connected" : "disconnected";
-        res.write(health.dump());
-        res.code = 200;
+    ([&manager, &createErrorResponse, &createSuccessResponse](const crow::request& req, crow::response& res) {
+        auto fut = std::async(std::launch::async, [&manager, &req, &createErrorResponse, &createSuccessResponse]() {
+            crow::response local_res;
+            try {
+                RecipeManagerSQLite::SearchCriteria criteria;
+                // Extract query parameters
+                if (req.url_params.get("q")) {
+                    criteria.query = req.url_params.get("q");
+                }
+                if (req.url_params.get("category")) {
+                    criteria.category = req.url_params.get("category");
+                }
+                if (req.url_params.get("type")) {
+                    criteria.type = req.url_params.get("type");
+                }
+                if (req.url_params.get("cookTimeMax")) {
+                    criteria.cookTimeMax = req.url_params.get("cookTimeMax");
+                }
+                if (req.url_params.get("servingSizeMin")) {
+                    criteria.servingSizeMin = req.url_params.get("servingSizeMin");
+                }
+                if (req.url_params.get("servingSizeMax")) {
+                    criteria.servingSizeMax = req.url_params.get("servingSizeMax");
+                }
+                if (req.url_params.get("ingredient")) {
+                    criteria.ingredient = req.url_params.get("ingredient");
+                }
+                if (req.url_params.get("sortBy")) {
+                    criteria.sortBy = req.url_params.get("sortBy");
+                }
+                if (req.url_params.get("sortOrder")) {
+                    criteria.sortOrder = req.url_params.get("sortOrder");
+                }
+
+                auto recipes = manager.advancedSearch(criteria);
+
+                crow::json::wvalue data;
+                crow::json::wvalue recipes_json = crow::json::wvalue::list();
+                for (size_t i = 0; i < recipes.size(); ++i) {
+                    crow::json::wvalue recipe_json;
+                    recipe_json["id"] = recipes[i].getId();
+                    recipe_json["title"] = recipes[i].getTitle();
+                    recipe_json["ingredients"] = recipes[i].getIngredients();
+                    recipe_json["instructions"] = recipes[i].getInstructions();
+                    recipe_json["servingSize"] = recipes[i].getServingSize();
+                    recipe_json["cookTime"] = recipes[i].getCookTime();
+                    recipe_json["category"] = recipes[i].getCategory();
+                    recipe_json["type"] = recipes[i].getType();
+                    recipes_json[i] = std::move(recipe_json);
+                }
+                data["recipes"] = std::move(recipes_json);
+                data["count"] = recipes.size();
+
+                local_res = createSuccessResponse(data);
+            } catch (const std::exception& e) {
+                local_res = createErrorResponse(std::string("Failed to perform advanced search: ") + e.what(), 500);
+            }
+            local_res.end();
+            return local_res;
+        });
+        res = fut.get();
         res.end();
     });
-
-    // ==================== AUTHENTICATION ENDPOINTS ====================
-
-    // POST /api/auth/register - Register a new user
-    CROW_ROUTE(app, "/api/auth/register")
-    .methods("POST"_method)
-    ([&authService, &createErrorResponse](const crow::request& req, crow::response& res) {
-        if (!authService) {
-            res = createErrorResponse("Authentication service not available", 503);
-            res.end();
-            return;
-        }
-
-        try {
-            auto body = crow::json::load(req.body);
-            if (!body) {
-                res = createErrorResponse("Invalid JSON", 400);
-                res.end();
-                return;
-            }
-
-            std::string email = body["email"].s();
-            std::string password = body["password"].s();
-
-            if (email.empty() || password.empty()) {
-                res = createErrorResponse("Email and password are required", 400);
-                res.end();
-                return;
-            }
-
-            auto result = authService->registerUser(email, password);
-
-            if (result.success) {
-                crow::json::wvalue response;
-                response["success"] = true;
-                response["message"] = result.message;
-                response["data"]["userId"] = result.userId;
-                res = crow::response(201, response);
-            } else {
-                res = createErrorResponse(result.message, 400);
-            }
-        } catch (const std::exception& e) {
-            res = createErrorResponse(std::string("Registration failed: ") + e.what(), 500);
-        }
-        res.end();
-    });
-
-    // POST /api/auth/login - Login user and get JWT token
-    CROW_ROUTE(app, "/api/auth/login")
     .methods("POST"_method)
     ([&authService, &createErrorResponse](const crow::request& req, crow::response& res) {
         if (!authService) {

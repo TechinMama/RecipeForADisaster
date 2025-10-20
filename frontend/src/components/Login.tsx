@@ -51,7 +51,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onSwitchToRegister }) => {
           <h2>Login to RecipeForADisaster</h2>
         </div>
 
-        <form onSubmit={handleSubmit} className="auth-form">
+        <form onSubmit={handleSubmit} className="auth-form" role="form">
           <div className="form-group">
             <label htmlFor="email">Email</label>
             <input

@@ -71,7 +71,7 @@ const Register: React.FC<RegisterProps> = ({ onRegister, onSwitchToLogin }) => {
           <h2>Join RecipeForADisaster</h2>
         </div>
 
-        <form onSubmit={handleSubmit} className="auth-form">
+        <form onSubmit={handleSubmit} className="auth-form" role="form">
           <div className="form-group">
             <label htmlFor="name">Full Name</label>
             <input

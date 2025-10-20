@@ -8,26 +8,31 @@ jest.mock('./services/api', () => ({
   login: jest.fn(),
   register: jest.fn(),
   getCurrentUser: jest.fn(),
-  getAllRecipes: jest.fn(),
   updateCurrentUser: jest.fn(),
   getCollections: jest.fn(),
+  recipeApi: {
+    getAllRecipes: jest.fn(),
+    searchRecipes: jest.fn(),
+    getRecipesByCategory: jest.fn(),
+    getRecipesByType: jest.fn(),
+  },
 }));
 
 import {
   login,
   register,
   getCurrentUser,
-  getAllRecipes,
   updateCurrentUser,
-  getCollections
+  getCollections,
+  recipeApi
 } from './services/api';
 
 const mockLogin = login as jest.MockedFunction<typeof login>;
 const mockRegister = register as jest.MockedFunction<typeof register>;
 const mockGetCurrentUser = getCurrentUser as jest.MockedFunction<typeof getCurrentUser>;
-const mockGetAllRecipes = getAllRecipes as jest.MockedFunction<typeof getAllRecipes>;
 const mockUpdateCurrentUser = updateCurrentUser as jest.MockedFunction<typeof updateCurrentUser>;
 const mockGetCollections = getCollections as jest.MockedFunction<typeof getCollections>;
+const mockGetAllRecipes = recipeApi.getAllRecipes as jest.MockedFunction<typeof recipeApi.getAllRecipes>;
 
 describe('Authentication Integration Tests', () => {
   beforeEach(() => {
@@ -96,7 +101,8 @@ describe('Authentication Integration Tests', () => {
       jest.clearAllMocks();
       localStorage.clear();
 
-      mockGetCurrentUser.mockRejectedValue(new Error('Not authenticated'));
+      // Initial auth check should fail
+      mockGetCurrentUser.mockRejectedValueOnce(new Error('Not authenticated'));
       mockGetAllRecipes.mockResolvedValue([]);
       mockGetCollections.mockResolvedValue([]);
 
@@ -121,12 +127,18 @@ describe('Authentication Integration Tests', () => {
         data: { token: mockToken, user: mockUser }
       });
 
+      // After login, getCurrentUser should succeed
       mockGetCurrentUser.mockResolvedValueOnce(mockUser);
       mockGetAllRecipes.mockResolvedValueOnce([]);
 
       render(<App />);
 
-      // Wait for loading to complete and welcome screen to appear
+      // Wait for loading to complete
+      await waitFor(() => {
+        expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
+      });
+
+      // Wait for welcome screen to appear
       await waitFor(() => {
         expect(screen.getByText('Welcome to RecipeForADisaster')).toBeInTheDocument();
       });
@@ -142,7 +154,8 @@ describe('Authentication Integration Tests', () => {
       fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password123' } });
 
       // Submit login
-      fireEvent.click(screen.getByRole('button', { name: 'Login' }));
+      const form = screen.getByRole('form');
+      fireEvent.submit(form);
 
       // Should authenticate and show main app
       await waitFor(() => {

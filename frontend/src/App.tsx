@@ -10,6 +10,8 @@ import CollectionView from './components/CollectionView';
 import CollectionForm from './components/CollectionForm';
 import Login from './components/Login';
 import Register from './components/Register';
+import PWAInstallPrompt from './components/PWAInstallPrompt';
+import OfflineIndicator from './components/OfflineIndicator';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Recipe, Collection, User } from './types/Recipe';
 import './App.css';
@@ -315,6 +317,10 @@ function AppContent() {
       <footer className="App-footer">
         <p>&copy; 2025 RecipeForADisaster - Powered by AI and Crow</p>
       </footer>
+
+      {/* PWA Components */}
+      <PWAInstallPrompt />
+      <OfflineIndicator />
     </div>
   );
 }

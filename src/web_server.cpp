@@ -454,6 +454,9 @@ int main() {
         res = fut.get();
         res.end();
     });
+
+    // POST /api/auth/login - User login
+    CROW_ROUTE(app, "/api/auth/login")
     .methods("POST"_method)
     ([&authService, &createErrorResponse](const crow::request& req, crow::response& res) {
         if (!authService) {

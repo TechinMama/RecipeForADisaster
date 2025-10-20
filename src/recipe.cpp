@@ -1,6 +1,7 @@
 #include "recipe.h"
 #include <algorithm>
 #include <cctype>
+#include <nlohmann/json.hpp>
 
 recipe::recipe(const std::string& title, const std::string& ingredients, const std::string& instructions,
                const std::string& servingSize, const std::string& cookTime,
@@ -161,44 +162,22 @@ std::string recipe::toJson() const {
 }
 
 recipe recipe::fromJson(const std::string& jsonStr) {
-    std::string cleanedJson = jsonStr;
-
-    // Remove whitespace
-    cleanedJson.erase(std::remove_if(cleanedJson.begin(), cleanedJson.end(),
-        [](char c) { return std::isspace(c); }), cleanedJson.end());
-
-    // Basic JSON validation
-    if (cleanedJson.empty() || cleanedJson[0] != '{' || cleanedJson.back() != '}') {
-        throw ValidationError("Invalid JSON format");
+    try {
+        nlohmann::json j = nlohmann::json::parse(jsonStr);
+        
+        std::string id = j.value("id", "");
+        std::string title = j.value("title", "");
+        std::string ingredients = j.value("ingredients", "");
+        std::string instructions = j.value("instructions", "");
+        std::string servingSize = j.value("servingSize", "");
+        std::string cookTime = j.value("cookTime", "");
+        std::string category = j.value("category", "");
+        std::string type = j.value("type", "");
+        
+        return recipe(title, ingredients, instructions, servingSize, cookTime, category, type, id);
+    } catch (const std::exception& e) {
+        throw ValidationError("Invalid JSON format: " + std::string(e.what()));
     }
-
-    // Extract field values (simple parsing - for production, consider using a proper JSON library)
-    std::string id, title, ingredients, instructions, servingSize, cookTime, category, type;
-
-    // Helper function to extract string value
-    auto extractString = [](const std::string& json, const std::string& field) -> std::string {
-        std::string searchStr = "\"" + field + "\":\"";
-        size_t startPos = json.find(searchStr);
-        if (startPos == std::string::npos) return "";
-
-        startPos += searchStr.length();
-        size_t endPos = json.find("\"", startPos);
-        if (endPos == std::string::npos) return "";
-
-        std::string value = json.substr(startPos, endPos - startPos);
-        return unescapeJsonString(value);
-    };
-
-    id = extractString(cleanedJson, "id");
-    title = extractString(cleanedJson, "title");
-    ingredients = extractString(cleanedJson, "ingredients");
-    instructions = extractString(cleanedJson, "instructions");
-    servingSize = extractString(cleanedJson, "servingSize");
-    cookTime = extractString(cleanedJson, "cookTime");
-    category = extractString(cleanedJson, "category");
-    type = extractString(cleanedJson, "type");
-
-    return recipe(title, ingredients, instructions, servingSize, cookTime, category, type, id);
 }
 
 std::string recipe::escapeJsonString(const std::string& str) const {

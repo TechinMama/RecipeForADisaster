@@ -28,6 +28,7 @@ RUN cd /vcpkg && \
     crow \
     utf8proc \
     zlib \
+    redis-plus-plus \
     --triplet x64-linux
 
 # Copy source code

@@ -68,7 +68,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ onEdit, onClose }) => {
         <div className="profile-content">
           <div className="profile-avatar-section">
             {user.avatarUrl ? (
-              <img src={user.avatarUrl} alt="Profile" className="profile-avatar" />
+              <img src={user.avatarUrl} alt="Profile" className="profile-avatar" loading="lazy" />
             ) : (
               <div className="profile-avatar-placeholder">
                 {user.name ? user.name.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase()}

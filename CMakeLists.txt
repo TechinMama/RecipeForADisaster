@@ -3,8 +3,9 @@ cmake_minimum_required(VERSION 3.10)
 # Add common installation paths to CMAKE_PREFIX_PATH before project()
 list(APPEND CMAKE_PREFIX_PATH "/usr/local" "/opt/homebrew" "/usr" "/usr/local/lib/cmake" "/usr/lib/cmake")
 
-# Add vcpkg paths if VCPKG_ROOT is set
+# Add vcpkg paths - handle both VCPKG_ROOT env var and toolchain file cases
 if(DEFINED ENV{VCPKG_ROOT})
+    # VCPKG_ROOT is set (traditional vcpkg setup)
     if(WIN32)
         list(APPEND CMAKE_PREFIX_PATH "$ENV{VCPKG_ROOT}/installed/x64-windows" "$ENV{VCPKG_ROOT}/packages")
         set(Boost_ROOT "$ENV{VCPKG_ROOT}/installed/x64-windows")
@@ -18,11 +19,38 @@ if(DEFINED ENV{VCPKG_ROOT})
         set(Boost_ROOT "$ENV{VCPKG_ROOT}/installed/x64-linux")
         list(APPEND CMAKE_IGNORE_PATH "/opt/anaconda3")
     endif()
+else()
+    # Check if vcpkg toolchain file is being used (CMAKE_PREFIX_PATH contains vcpkg paths)
+    string(FIND "${CMAKE_PREFIX_PATH}" "vcpkg_installed" VCPKG_TOOLCHAIN_USED)
+    if(NOT VCPKG_TOOLCHAIN_USED EQUAL -1)
+        # Extract vcpkg installed directory from CMAKE_PREFIX_PATH
+        foreach(path ${CMAKE_PREFIX_PATH})
+            if(path MATCHES "vcpkg_installed")
+                # Add share directory for CMake config files
+                string(REGEX REPLACE "/vcpkg_installed/.*" "/vcpkg_installed" VCPKG_BASE "${path}")
+                if(WIN32)
+                    list(APPEND CMAKE_PREFIX_PATH "${VCPKG_BASE}/x64-windows/share")
+                elseif(APPLE)
+                    if(CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64")
+                        list(APPEND CMAKE_PREFIX_PATH "${VCPKG_BASE}/arm64-osx/share")
+                    else()
+                        list(APPEND CMAKE_PREFIX_PATH "${VCPKG_BASE}/x64-osx/share")
+                    endif()
+                else()
+                    list(APPEND CMAKE_PREFIX_PATH "${VCPKG_BASE}/x64-linux/share")
+                endif()
+                break()
+            endif()
+        endforeach()
+    endif()
 endif()
 
 set(CMAKE_CXX_STANDARD 20) # Set the C++ standard to C++20
 
 project(RecipeForADisaster)
+
+# Add vcpkg installed paths to CMAKE_PREFIX_PATH for CMake config files
+list(APPEND CMAKE_PREFIX_PATH "${CMAKE_BINARY_DIR}/vcpkg_installed/arm64-osx/share")
 
 # Windows-specific compiler flags to suppress warnings
 if(WIN32)
@@ -103,6 +131,11 @@ if(NOT GTest_FOUND)
     # Prevent overriding the parent project's compiler/linker on Windows
     set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
     FetchContent_MakeAvailable(googletest)
+
+    # Create consistent target names
+    if(NOT TARGET GTest::gtest_main)
+        add_library(GTest::gtest_main ALIAS gtest_main)
+    endif()
 endif()
 
 # Add HashiCorp Vault C++ client
@@ -121,10 +154,18 @@ message(STATUS "CMAKE_PREFIX_PATH: ${CMAKE_PREFIX_PATH}")
 find_package(SQLite3 REQUIRED)
 
 # Find redis-plus-plus (redis++)
-if(DEFINED ENV{VCPKG_ROOT})
-    set(redis++_DIR "$ENV{VCPKG_ROOT}/packages/redis-plus-plus_arm64-osx/share/redis++")
-endif()
+find_package(hiredis CONFIG REQUIRED)
 find_package(redis++ CONFIG REQUIRED)
+
+if(TARGET redis++::redis++_static)
+    message(STATUS "Found redis++::redis++_static")
+    set(REDIS_TARGET redis++::redis++_static)
+elseif(TARGET redis++)
+    message(STATUS "Found redis++")
+    set(REDIS_TARGET redis++)
+else()
+    message(FATAL_ERROR "redis++ target not found")
+endif()
 
 if(SQLite3_FOUND)
     message(STATUS "Found SQLite3: ${SQLite3_INCLUDE_DIRS}")
@@ -179,19 +220,39 @@ add_executable(unit_tests
 
 # Link libraries
 if(WIN32)
-    target_link_libraries(RecipeForADisaster ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json OpenSSL::SSL OpenSSL::Crypto ws2_32 crypt32 redis++::redis++_static)
-    target_link_libraries(web_server ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json Crow OpenSSL::SSL OpenSSL::Crypto ws2_32 crypt32 redis++::redis++_static)
-    target_link_libraries(integration_tests ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json OpenSSL::SSL OpenSSL::Crypto ws2_32 crypt32 redis++::redis++_static)
-    target_link_libraries(ai_service_tests ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json OpenSSL::SSL OpenSSL::Crypto ws2_32 crypt32 redis++::redis++_static)
-    target_link_libraries(vault_tests CURL::libcurl nlohmann_json::nlohmann_json ws2_32 crypt32 redis++::redis++_static)
-    target_link_libraries(unit_tests ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json gtest_main OpenSSL::SSL OpenSSL::Crypto ws2_32 crypt32 redis++::redis++_static)
+    # Use static linking on Windows
+    if(TARGET redis++::redis++_static)
+        set(REDIS_TARGET redis++::redis++_static)
+    elseif(TARGET redis++)
+        set(REDIS_TARGET redis++)
+    else()
+        message(FATAL_ERROR "redis++ target not found")
+    endif()
+
+    target_link_libraries(RecipeForADisaster ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json OpenSSL::SSL OpenSSL::Crypto ws2_32 crypt32 ${REDIS_TARGET})
+    target_link_libraries(web_server ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json Crow OpenSSL::SSL OpenSSL::Crypto ws2_32 crypt32 ${REDIS_TARGET})
+    target_link_libraries(integration_tests ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json OpenSSL::SSL OpenSSL::Crypto ws2_32 crypt32 ${REDIS_TARGET})
+    target_link_libraries(ai_service_tests ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json OpenSSL::SSL OpenSSL::Crypto ws2_32 crypt32 ${REDIS_TARGET})
+    target_link_libraries(vault_tests CURL::libcurl nlohmann_json::nlohmann_json ws2_32 crypt32 ${REDIS_TARGET})
+    target_link_libraries(unit_tests ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json GTest::gtest_main OpenSSL::SSL OpenSSL::Crypto ws2_32 crypt32 ${REDIS_TARGET})
 else()
-    target_link_libraries(RecipeForADisaster ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json OpenSSL::SSL OpenSSL::Crypto redis++::redis++_static)
-    target_link_libraries(web_server ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json Crow OpenSSL::SSL OpenSSL::Crypto redis++::redis++_static)
-    target_link_libraries(integration_tests ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json OpenSSL::SSL OpenSSL::Crypto redis++::redis++_static)
-    target_link_libraries(ai_service_tests ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json OpenSSL::SSL OpenSSL::Crypto redis++::redis++_static)
-    target_link_libraries(vault_tests CURL::libcurl nlohmann_json::nlohmann_json redis++::redis++_static)
-    target_link_libraries(unit_tests ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json gtest_main OpenSSL::SSL OpenSSL::Crypto redis++::redis++_static)
+    # Use shared linking on other platforms
+if(TARGET redis++::redis++_static)
+    set(REDIS_TARGET redis++::redis++_static)
+elseif(TARGET redis++::redis++)
+    set(REDIS_TARGET redis++::redis++)
+elseif(TARGET redis++)
+    set(REDIS_TARGET redis++)
+else()
+    message(FATAL_ERROR "redis++ target not found")
+endif()
+
+    target_link_libraries(RecipeForADisaster ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json OpenSSL::SSL OpenSSL::Crypto ${REDIS_TARGET})
+    target_link_libraries(web_server ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json Crow OpenSSL::SSL OpenSSL::Crypto ${REDIS_TARGET})
+    target_link_libraries(integration_tests ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json OpenSSL::SSL OpenSSL::Crypto ${REDIS_TARGET})
+    target_link_libraries(ai_service_tests ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json OpenSSL::SSL OpenSSL::Crypto ${REDIS_TARGET})
+    target_link_libraries(vault_tests CURL::libcurl nlohmann_json::nlohmann_json ${REDIS_TARGET})
+    target_link_libraries(unit_tests ${DATABASE_LIBRARIES} CURL::libcurl nlohmann_json::nlohmann_json GTest::gtest_main OpenSSL::SSL OpenSSL::Crypto ${REDIS_TARGET})
 endif()
 
 # Test executable needs the same include directories

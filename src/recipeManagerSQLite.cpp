@@ -429,6 +429,75 @@ std::vector<recipe> RecipeManagerSQLite::getRecipesByUser(const std::string& use
     return recipes;
 }
 
+// User-specific operations
+bool RecipeManagerSQLite::isRecipeOwnedByUser(const std::string& recipeId, const std::string& userId) {
+    const char* selectSQL = "SELECT COUNT(*) FROM recipes WHERE id = ? AND user_id = ?;";
+    sqlite3_stmt* stmt = nullptr;
+
+    int rc = sqlite3_prepare_v2(static_cast<sqlite3*>(db_), selectSQL, -1, &stmt, nullptr);
+    if (rc != SQLITE_OK) {
+        std::cerr << "Failed to prepare statement: " << sqlite3_errmsg(static_cast<sqlite3*>(db_)) << std::endl;
+        return false;
+    }
+
+    sqlite3_bind_text(stmt, 1, recipeId.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 2, userId.c_str(), -1, SQLITE_TRANSIENT);
+
+    bool owned = false;
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        owned = sqlite3_column_int(stmt, 0) > 0;
+    }
+
+    sqlite3_finalize(stmt);
+    return owned;
+}
+
+bool RecipeManagerSQLite::isRecipeOwnedByUserByTitle(const std::string& recipeTitle, const std::string& userId) {
+    const char* selectSQL = "SELECT COUNT(*) FROM recipes r WHERE json_extract(r.data, '$.title') = ? AND r.user_id = ?;";
+    sqlite3_stmt* stmt = nullptr;
+
+    int rc = sqlite3_prepare_v2(static_cast<sqlite3*>(db_), selectSQL, -1, &stmt, nullptr);
+    if (rc != SQLITE_OK) {
+        std::cerr << "Failed to prepare statement: " << sqlite3_errmsg(static_cast<sqlite3*>(db_)) << std::endl;
+        return false;
+    }
+
+    sqlite3_bind_text(stmt, 1, recipeTitle.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 2, userId.c_str(), -1, SQLITE_TRANSIENT);
+
+    bool owned = false;
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        owned = sqlite3_column_int(stmt, 0) > 0;
+    }
+
+    sqlite3_finalize(stmt);
+    return owned;
+}
+
+std::vector<recipe> RecipeManagerSQLite::getRecipesByUser(const std::string& userId) {
+    const char* selectSQL = "SELECT data FROM recipes WHERE user_id = ? ORDER BY created_at DESC;";
+    sqlite3_stmt* stmt = nullptr;
+    std::vector<recipe> recipes;
+
+    int rc = sqlite3_prepare_v2(static_cast<sqlite3*>(db_), selectSQL, -1, &stmt, nullptr);
+    if (rc != SQLITE_OK) {
+        std::cerr << "Failed to prepare statement: " << sqlite3_errmsg(static_cast<sqlite3*>(db_)) << std::endl;
+        return recipes;
+    }
+
+    sqlite3_bind_text(stmt, 1, userId.c_str(), -1, SQLITE_TRANSIENT);
+
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        const void* blobData = sqlite3_column_blob(stmt, 0);
+        int blobSize = sqlite3_column_bytes(stmt, 0);
+        std::string jsonData(static_cast<const char*>(blobData), blobSize);
+        recipes.push_back(jsonToRecipe(jsonData));
+    }
+
+    sqlite3_finalize(stmt);
+    return recipes;
+}
+
 std::unique_ptr<recipe> RecipeManagerSQLite::getRecipe(const std::string& id) {
     const char* selectSQL = "SELECT data FROM recipes WHERE id = ?;";
     sqlite3_stmt* stmt = nullptr;

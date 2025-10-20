@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#667eea" />
+    <meta name="description" content="RecipeForADisaster PWA Test Page" />
+    <link rel="manifest" href="/manifest.json" />
+    <title>RecipeForADisaster PWA Test</title>
+</head>
+<body>
+    <h1>RecipeForADisaster PWA Test</h1>
+    <p>This is a test page to validate PWA functionality.</p>
+    <button onclick="testNotification()">Test Notification</button>
+    <div id="status"></div>
+
+    <script>
+        // Test service worker registration
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(function(registration) {
+                        console.log('SW registered: ', registration);
+                        document.getElementById('status').innerHTML += 'Service Worker registered<br>';
+                    })
+                    .catch(function(registrationError) {
+                        console.log('SW registration failed: ', registrationError);
+                        document.getElementById('status').innerHTML += 'Service Worker registration failed<br>';
+                    });
+            });
+        }
+
+        // Test notification permission
+        function testNotification() {
+            if ('Notification' in window) {
+                Notification.requestPermission().then(function(permission) {
+                    document.getElementById('status').innerHTML += 'Notification permission: ' + permission + '<br>';
+                });
+            } else {
+                document.getElementById('status').innerHTML += 'Notifications not supported<br>';
+            }
+        }
+
+        // Test online/offline status
+        window.addEventListener('online', function() {
+            document.getElementById('status').innerHTML += 'Back online<br>';
+        });
+
+        window.addEventListener('offline', function() {
+            document.getElementById('status').innerHTML += 'Gone offline<br>';
+        });
+
+        // Test install prompt
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', function(e) {
+            e.preventDefault();
+            deferredPrompt = e;
+            document.getElementById('status').innerHTML += 'Install prompt available<br>';
+        });
+    </script>
+</body>
+</html>

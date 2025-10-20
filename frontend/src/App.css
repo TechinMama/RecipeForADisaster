@@ -1892,3 +1892,268 @@ textarea {
   }
 }
 
+/* ===== MOBILE OPTIMIZATION AND PWA ENHANCEMENTS ===== */
+
+/* Mobile-first responsive grid */
+@media (max-width: 768px) {
+  .App-main {
+    padding: 10px;
+  }
+
+  .recipes-grid {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+
+  .recipe-card {
+    padding: 15px;
+  }
+
+  .recipe-card h3 {
+    font-size: 1.2rem;
+  }
+
+  .recipe-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .view-button, .edit-button, .delete-button {
+    width: 100%;
+    padding: 10px;
+    font-size: 14px;
+  }
+}
+
+/* Touch-friendly interactions */
+@media (hover: none) and (pointer: coarse) {
+  .recipe-card:hover {
+    transform: none;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  }
+
+  .nav-button:hover,
+  .auth-button:hover,
+  .welcome-button:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+  }
+}
+
+/* PWA Install Prompt */
+.install-prompt {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  right: 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  z-index: 1001;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.install-prompt-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.install-prompt-icon {
+  width: 48px;
+  height: 48px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+}
+
+.install-prompt-content h3 {
+  margin: 0 0 5px 0;
+  font-size: 18px;
+}
+
+.install-prompt-content p {
+  margin: 0;
+  opacity: 0.9;
+  font-size: 14px;
+}
+
+.install-prompt-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.install-button {
+  background: white;
+  color: #667eea;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.install-button:hover {
+  background: rgba(255, 255, 255, 0.9);
+  transform: translateY(-1px);
+}
+
+.dismiss-button {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.dismiss-button:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Offline indicator */
+.offline-indicator {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  right: 20px;
+  background: #dc3545;
+  color: white;
+  padding: 12px 20px;
+  border-radius: 8px;
+  text-align: center;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.offline-indicator::before {
+  content: '⚠️';
+  font-size: 18px;
+}
+
+.online-indicator {
+  background: #28a745;
+  box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+}
+
+.online-indicator::before {
+  content: '✅';
+}
+
+/* Mobile navigation improvements */
+@media (max-width: 768px) {
+  .header-content {
+    flex-direction: column;
+    gap: 15px;
+    text-align: center;
+  }
+
+  .header-nav {
+    width: 100%;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .nav-button {
+    flex: 1;
+    min-width: 100px;
+    padding: 10px;
+    font-size: 13px;
+  }
+
+  .auth-buttons {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .auth-button {
+    flex: 1;
+    padding: 10px;
+  }
+
+  .user-info {
+    flex-direction: column;
+    gap: 8px;
+  }
+}
+
+/* Safe area support for notched devices */
+@supports (padding: max(0px)) {
+  .App {
+    padding-left: max(10px, env(safe-area-inset-left));
+    padding-right: max(10px, env(safe-area-inset-right));
+  }
+
+  .install-prompt {
+    left: max(20px, env(safe-area-inset-left));
+    right: max(20px, env(safe-area-inset-right));
+    bottom: max(20px, env(safe-area-inset-bottom));
+  }
+
+  .offline-indicator {
+    left: max(20px, env(safe-area-inset-left));
+    right: max(20px, env(safe-area-inset-right));
+    top: max(20px, env(safe-area-inset-top));
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .recipe-card {
+    border: 2px solid #000;
+  }
+
+  .install-button {
+    border: 2px solid #000;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .recipe-card,
+  .nav-button,
+  .auth-button,
+  .welcome-button,
+  .install-button,
+  .dismiss-button {
+    transition: none;
+  }
+
+  .recipe-card:hover {
+    transform: none;
+  }
+
+  .loading-spinner {
+    animation: none;
+  }
+
+  @keyframes spin {
+    /* Disabled for reduced motion */
+  }
+}
+
+/* Dark mode support (future enhancement) */
+@media (prefers-color-scheme: dark) {
+  /* Placeholder for future dark mode implementation */
+  .recipe-card {
+    background: #2d3748;
+    color: #e2e8f0;
+    border-color: #4a5568;
+  }
+}
+

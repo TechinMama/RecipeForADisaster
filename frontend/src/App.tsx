@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
-import RecipeList from './components/RecipeList';
+
+import React, { useState, Suspense } from 'react';
 import RecipeForm from './components/RecipeForm';
-import RecipeDetails from './components/RecipeDetails';
 import AIGeneration from './components/AIGeneration';
 import ProfileView from './components/ProfileView';
 import ProfileEdit from './components/ProfileEdit';
@@ -15,6 +14,9 @@ import OfflineIndicator from './components/OfflineIndicator';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Recipe, Collection, User } from './types/Recipe';
 import './App.css';
+
+const RecipeList = React.lazy(() => import('./components/RecipeList'));
+const RecipeDetails = React.lazy(() => import('./components/RecipeDetails'));
 
 function AppContent() {
   const { user, login, logout, isAuthenticated, loading } = useAuth();
@@ -260,11 +262,13 @@ function AppContent() {
                 Generate with AI
               </button>
             </div>
-            <RecipeList
-              onEdit={handleEditRecipe}
-              onView={handleViewRecipe}
-              refreshTrigger={refreshTrigger}
-            />
+            <Suspense fallback={<div>Loading recipes...</div>}>
+              <RecipeList
+                onEdit={handleEditRecipe}
+                onView={handleViewRecipe}
+                refreshTrigger={refreshTrigger}
+              />
+            </Suspense>
           </div>
         ) : currentView === 'form' ? (
           <RecipeForm
@@ -305,11 +309,13 @@ function AppContent() {
           />
         ) : (
           viewingRecipe && (
+            <Suspense fallback={<div>Loading recipe details...</div>}>
             <RecipeDetails
               recipe={viewingRecipe}
               onClose={handleCloseDetails}
               onEdit={handleEditFromDetails}
             />
+            </Suspense>
           )
         )}
       </main>

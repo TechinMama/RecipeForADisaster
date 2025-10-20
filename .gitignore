@@ -64,4 +64,11 @@ QUICKSTART_GUIDE.md
 
 # Test outputs
 Testing/
-CTestTestfile.cmakevcpkg/
+CTestTestfile.cmake
+
+# vcpkg installed packages (large binary directory)
+vcpkg_installed/
+
+# Test databases
+test_recipes.db
+*.db

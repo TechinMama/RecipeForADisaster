@@ -1,21 +1,19 @@
 #include <sw/redis++/redis++.h>
 #include <sstream>
-    // Redis connection (singleton for simplicity)
-    static sw::redis::Redis& getRedis() {
-        static sw::redis::Redis redis("tcp://127.0.0.1:6379");
-        return redis;
-    }
 #include "recipeManagerSQLite.h"
 #include <sqlite3.h>
+
+#include <nlohmann/json.hpp>
 #include <iostream>
-#include <sstream>
-#include <iomanip>
-#include <chrono>
 #include <algorithm>
 #include <cctype>
-#include <nlohmann/json.hpp>
 
-// SQLite-based recipe manager implementation
+// Redis connection (singleton for simplicity)
+static sw::redis::Redis& getRedis() {
+    static sw::redis::Redis redis("tcp://127.0.0.1:6379");
+    return redis;
+}
+
 RecipeManagerSQLite::RecipeManagerSQLite(const std::string& dbPath)
     : dbPath_(dbPath), db_(nullptr) {
     initializeDatabase();
@@ -24,322 +22,323 @@ RecipeManagerSQLite::RecipeManagerSQLite(const std::string& dbPath)
 RecipeManagerSQLite::~RecipeManagerSQLite() {
     if (db_) {
         sqlite3_close(static_cast<sqlite3*>(db_));
+        db_ = nullptr;
     }
 }
 
 void RecipeManagerSQLite::initializeDatabase() {
-    int rc = sqlite3_open(dbPath_.c_str(), reinterpret_cast<sqlite3**>(&db_));
+    sqlite3* db;
+    int rc = sqlite3_open(dbPath_.c_str(), &db);
     if (rc != SQLITE_OK) {
-        throw std::runtime_error("Cannot open database: " + std::string(sqlite3_errmsg(static_cast<sqlite3*>(db_))));
+        std::cerr << "Failed to open database: " << sqlite3_errmsg(db) << std::endl;
+        if (db) {
+            sqlite3_close(db);
+        }
+        db_ = nullptr;
+        return;
     }
+    db_ = db;
 
-    const char* createRecipesTableSQL =
+    // Create recipes table
+    const char* createTableSQL = 
         "CREATE TABLE IF NOT EXISTS recipes ("
         "id TEXT PRIMARY KEY,"
-        "data BLOB NOT NULL,"
+        "data TEXT NOT NULL,"
         "user_id TEXT,"
         "created_at DATETIME DEFAULT CURRENT_TIMESTAMP,"
-        "updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,"
-        "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL"
+        "updated_at DATETIME DEFAULT CURRENT_TIMESTAMP"
         ");";
 
-    const char* createUsersTableSQL =
-        "CREATE TABLE IF NOT EXISTS users ("
-        "id TEXT PRIMARY KEY,"
-        "email TEXT UNIQUE NOT NULL,"
-        "password_hash TEXT NOT NULL,"
-        "created_at DATETIME DEFAULT CURRENT_TIMESTAMP,"
-        "updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,"
-        "is_active INTEGER DEFAULT 1,"
-        "name TEXT DEFAULT '',"
-        "bio TEXT DEFAULT '',"
-        "avatar_url TEXT DEFAULT '',"
-        "preferences TEXT DEFAULT '{}',"
-        "privacy_settings TEXT DEFAULT '{}'"
-        ");";
+    char* errMsg = nullptr;
+    rc = sqlite3_exec(static_cast<sqlite3*>(db_), createTableSQL, nullptr, nullptr, &errMsg);
+    if (rc != SQLITE_OK) {
+        std::cerr << "Failed to create recipes table: " << errMsg << std::endl;
+        sqlite3_free(errMsg);
+    }
 
-    const char* createCollectionsTableSQL =
-        "CREATE TABLE IF NOT EXISTS collections ("
-        "id TEXT PRIMARY KEY,"
-        "name TEXT NOT NULL,"
-        "description TEXT DEFAULT '',"
-        "user_id TEXT NOT NULL,"
-        "privacy_settings TEXT DEFAULT '{}',"
-        "created_at DATETIME DEFAULT CURRENT_TIMESTAMP,"
-        "updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,"
-        "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
-        ");";
-
-    const char* createCollectionRecipesTableSQL =
-        "CREATE TABLE IF NOT EXISTS collection_recipes ("
-        "collection_id TEXT NOT NULL,"
-        "recipe_id TEXT NOT NULL,"
-        "added_at DATETIME DEFAULT CURRENT_TIMESTAMP,"
-        "PRIMARY KEY (collection_id, recipe_id),"
-        "FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE CASCADE,"
-        "FOREIGN KEY (recipe_id) REFERENCES recipes(id) ON DELETE CASCADE"
-        ");";
-
-    const char* createRatingsTableSQL =
+    // Create ratings table
+    const char* createRatingsSQL = 
         "CREATE TABLE IF NOT EXISTS ratings ("
         "id TEXT PRIMARY KEY,"
         "recipe_id TEXT NOT NULL,"
         "user_id TEXT NOT NULL,"
-        "rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),"
+        "rating INTEGER NOT NULL CHECK(rating >= 1 AND rating <= 5),"
         "created_at DATETIME DEFAULT CURRENT_TIMESTAMP,"
         "updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,"
-        "UNIQUE(recipe_id, user_id),"
-        "FOREIGN KEY (recipe_id) REFERENCES recipes(id) ON DELETE CASCADE,"
-        "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+        "FOREIGN KEY(recipe_id) REFERENCES recipes(id),"
+        "UNIQUE(recipe_id, user_id)"
         ");";
 
-    const char* createReviewsTableSQL =
+    rc = sqlite3_exec(static_cast<sqlite3*>(db_), createRatingsSQL, nullptr, nullptr, &errMsg);
+    if (rc != SQLITE_OK) {
+        std::cerr << "Failed to create ratings table: " << errMsg << std::endl;
+        sqlite3_free(errMsg);
+    }
+
+    // Create reviews table
+    const char* createReviewsSQL = 
         "CREATE TABLE IF NOT EXISTS reviews ("
         "id TEXT PRIMARY KEY,"
         "recipe_id TEXT NOT NULL,"
         "user_id TEXT NOT NULL,"
-        "rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),"
-        "review_text TEXT NOT NULL CHECK (LENGTH(review_text) <= 500),"
-        "status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),"
-        "moderation_reason TEXT DEFAULT '',"
+        "rating INTEGER NOT NULL CHECK(rating >= 1 AND rating <= 5),"
+        "review_text TEXT NOT NULL,"
+        "status TEXT DEFAULT 'pending',"
+        "moderation_reason TEXT,"
         "helpful_votes INTEGER DEFAULT 0,"
         "created_at DATETIME DEFAULT CURRENT_TIMESTAMP,"
         "updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,"
-        "FOREIGN KEY (recipe_id) REFERENCES recipes(id) ON DELETE CASCADE,"
-        "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+        "FOREIGN KEY(recipe_id) REFERENCES recipes(id),"
+        "UNIQUE(recipe_id, user_id)"
         ");";
 
-    const char* createReviewVotesTableSQL =
+    rc = sqlite3_exec(static_cast<sqlite3*>(db_), createReviewsSQL, nullptr, nullptr, &errMsg);
+    if (rc != SQLITE_OK) {
+        std::cerr << "Failed to create reviews table: " << errMsg << std::endl;
+        sqlite3_free(errMsg);
+    }
+
+    // Create review_votes table
+    const char* createReviewVotesSQL = 
         "CREATE TABLE IF NOT EXISTS review_votes ("
         "review_id TEXT NOT NULL,"
         "user_id TEXT NOT NULL,"
-        "vote_type TEXT NOT NULL CHECK (vote_type IN ('helpful', 'not_helpful')),"
+        "vote_type TEXT NOT NULL,"
         "created_at DATETIME DEFAULT CURRENT_TIMESTAMP,"
-        "PRIMARY KEY (review_id, user_id),"
-        "FOREIGN KEY (review_id) REFERENCES reviews(id) ON DELETE CASCADE,"
-        "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+        "PRIMARY KEY(review_id, user_id),"
+        "FOREIGN KEY(review_id) REFERENCES reviews(id)"
         ");";
 
-    char* errMsg = nullptr;
-    rc = sqlite3_exec(static_cast<sqlite3*>(db_), createRecipesTableSQL, nullptr, nullptr, &errMsg);
+    rc = sqlite3_exec(static_cast<sqlite3*>(db_), createReviewVotesSQL, nullptr, nullptr, &errMsg);
     if (rc != SQLITE_OK) {
-        std::string error = errMsg;
+        std::cerr << "Failed to create review_votes table: " << errMsg << std::endl;
         sqlite3_free(errMsg);
-        throw std::runtime_error("Failed to create recipes table: " + error);
+    }
+}
+
+bool RecipeManagerSQLite::addRecipe(const recipe& recipe) {
+    return addRecipe(recipe, "");
+}
+
+bool RecipeManagerSQLite::addRecipe(const recipe& recipe, const std::string& userId) {
+    const char* sql = userId.empty() 
+        ? "INSERT INTO recipes (id, data) VALUES (?, ?);"
+        : "INSERT INTO recipes (id, data, user_id) VALUES (?, ?, ?);";
+
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare_v2(static_cast<sqlite3*>(db_), sql, -1, &stmt, nullptr);
+    if (rc != SQLITE_OK) {
+        std::cerr << "Failed to prepare statement: " << sqlite3_errmsg(static_cast<sqlite3*>(db_)) << std::endl;
+        return false;
     }
 
-    // Create indexes for performance
-    const char* createIndexTitle = "CREATE INDEX IF NOT EXISTS idx_recipes_title ON recipes((json_extract(data, '$.title')));";
-    rc = sqlite3_exec(static_cast<sqlite3*>(db_), createIndexTitle, nullptr, nullptr, &errMsg);
-    if (rc != SQLITE_OK) {
-        std::string error = errMsg;
-        sqlite3_free(errMsg);
-        throw std::runtime_error("Failed to create index on title: " + error);
+    std::string id = recipe.getId().empty() ? generateId() : recipe.getId();
+    // Create a copy of the recipe with the generated ID
+    ::recipe recipeWithId(recipe.getTitle(), recipe.getIngredients(), recipe.getInstructions(),
+                       recipe.getServingSize(), recipe.getCookTime(), recipe.getCategory(), 
+                       recipe.getType(), id);
+    std::string jsonData = recipeToJson(recipeWithId);
+
+    sqlite3_bind_text(stmt, 1, id.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 2, jsonData.c_str(), -1, SQLITE_TRANSIENT);
+    if (!userId.empty()) {
+        sqlite3_bind_text(stmt, 3, userId.c_str(), -1, SQLITE_TRANSIENT);
     }
 
-    const char* createIndexCategory = "CREATE INDEX IF NOT EXISTS idx_recipes_category ON recipes((json_extract(data, '$.category')));";
-    rc = sqlite3_exec(static_cast<sqlite3*>(db_), createIndexCategory, nullptr, nullptr, &errMsg);
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+
+    return rc == SQLITE_DONE;
+}
+
+bool RecipeManagerSQLite::updateRecipe(const std::string& id, const recipe& recipe) {
+    const char* sql = "UPDATE recipes SET data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?;";
+
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare_v2(static_cast<sqlite3*>(db_), sql, -1, &stmt, nullptr);
     if (rc != SQLITE_OK) {
-        std::string error = errMsg;
-        sqlite3_free(errMsg);
-        throw std::runtime_error("Failed to create index on category: " + error);
+        std::cerr << "Failed to prepare statement: " << sqlite3_errmsg(static_cast<sqlite3*>(db_)) << std::endl;
+        return false;
     }
 
-    const char* createIndexType = "CREATE INDEX IF NOT EXISTS idx_recipes_type ON recipes((json_extract(data, '$.type')));";
-    rc = sqlite3_exec(static_cast<sqlite3*>(db_), createIndexType, nullptr, nullptr, &errMsg);
+    std::string jsonData = recipeToJson(recipe);
+
+    sqlite3_bind_text(stmt, 1, jsonData.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 2, id.c_str(), -1, SQLITE_TRANSIENT);
+
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+
+    return rc == SQLITE_DONE;
+}
+
+bool RecipeManagerSQLite::updateRecipeByTitle(const std::string& title, const recipe& recipe) {
+    const char* sql = "UPDATE recipes SET data = ?, updated_at = CURRENT_TIMESTAMP WHERE json_extract(data, '$.title') = ?;";
+
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare_v2(static_cast<sqlite3*>(db_), sql, -1, &stmt, nullptr);
     if (rc != SQLITE_OK) {
-        std::string error = errMsg;
-        sqlite3_free(errMsg);
-        throw std::runtime_error("Failed to create index on type: " + error);
+        std::cerr << "Failed to prepare statement: " << sqlite3_errmsg(static_cast<sqlite3*>(db_)) << std::endl;
+        return false;
     }
 
-    const char* createIndexUserId = "CREATE INDEX IF NOT EXISTS idx_recipes_user_id ON recipes(user_id);";
-    rc = sqlite3_exec(static_cast<sqlite3*>(db_), createIndexUserId, nullptr, nullptr, &errMsg);
-    if (rc != SQLITE_OK) {
-        std::string error = errMsg;
-        sqlite3_free(errMsg);
-        throw std::runtime_error("Failed to create index on user_id: " + error);
-    }
+    std::string jsonData = recipeToJson(recipe);
 
-    const char* createIndexCreatedAt = "CREATE INDEX IF NOT EXISTS idx_recipes_created_at ON recipes(created_at);";
-    rc = sqlite3_exec(static_cast<sqlite3*>(db_), createIndexCreatedAt, nullptr, nullptr, &errMsg);
-    if (rc != SQLITE_OK) {
-        std::string error = errMsg;
-        sqlite3_free(errMsg);
-        throw std::runtime_error("Failed to create index on created_at: " + error);
-    }
+    sqlite3_bind_text(stmt, 1, jsonData.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 2, title.c_str(), -1, SQLITE_TRANSIENT);
 
-    rc = sqlite3_exec(static_cast<sqlite3*>(db_), createUsersTableSQL, nullptr, nullptr, &errMsg);
-    if (rc != SQLITE_OK) {
-        std::string error = errMsg;
-        sqlite3_free(errMsg);
-        throw std::runtime_error("Failed to create users table: " + error);
-    }
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
 
-    rc = sqlite3_exec(static_cast<sqlite3*>(db_), createCollectionsTableSQL, nullptr, nullptr, &errMsg);
-    if (rc != SQLITE_OK) {
-        std::string error = errMsg;
-        sqlite3_free(errMsg);
-        throw std::runtime_error("Failed to create collections table: " + error);
-    }
+    return rc == SQLITE_DONE;
+}
 
-    rc = sqlite3_exec(static_cast<sqlite3*>(db_), createCollectionRecipesTableSQL, nullptr, nullptr, &errMsg);
-    if (rc != SQLITE_OK) {
-        std::string error = errMsg;
-        sqlite3_free(errMsg);
-        throw std::runtime_error("Failed to create collection_recipes table: " + error);
-    }
+std::string RecipeManagerSQLite::generateId() {
+    // Simple ID generation - in production, use UUID
+    static int counter = 0;
+    return "recipe_" + std::to_string(++counter) + "_" + std::to_string(std::time(nullptr));
+}
 
-    rc = sqlite3_exec(static_cast<sqlite3*>(db_), createRatingsTableSQL, nullptr, nullptr, &errMsg);
-    if (rc != SQLITE_OK) {
-        std::string error = errMsg;
-        sqlite3_free(errMsg);
-        throw std::runtime_error("Failed to create ratings table: " + error);
-    }
-
-    rc = sqlite3_exec(static_cast<sqlite3*>(db_), createReviewsTableSQL, nullptr, nullptr, &errMsg);
-    if (rc != SQLITE_OK) {
-        std::string error = errMsg;
-        sqlite3_free(errMsg);
-        throw std::runtime_error("Failed to create reviews table: " + error);
-    }
-
-    rc = sqlite3_exec(static_cast<sqlite3*>(db_), createReviewVotesTableSQL, nullptr, nullptr, &errMsg);
-    if (rc != SQLITE_OK) {
-        std::string error = errMsg;
-        sqlite3_free(errMsg);
-        throw std::runtime_error("Failed to create review_votes table: " + error);
-    }
+std::string RecipeManagerSQLite::recipeToJson(const recipe& recipe) {
+    return recipe.toJson();
 }
 
 bool RecipeManagerSQLite::isConnected() const {
     return db_ != nullptr;
 }
 
-std::string RecipeManagerSQLite::generateId() {
-    auto now = std::chrono::system_clock::now();
-    auto timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
-    std::stringstream ss;
+std::vector<recipe> RecipeManagerSQLite::advancedSearch(const SearchCriteria& criteria) {
     std::vector<recipe> recipes;
     std::string sql = "SELECT data FROM recipes WHERE 1=1";
-    std::vector<std::string> conditions;
     std::vector<std::string> params;
 
-    bool isExpensive = false;
-    // Full-text search (across title, ingredients, instructions, category, type)
-    if (!criteria.query.empty()) {
-        conditions.push_back("(LOWER(json_extract(data, '$.title')) LIKE ? OR LOWER(json_extract(data, '$.ingredients')) LIKE ? OR LOWER(json_extract(data, '$.instructions')) LIKE ? OR LOWER(json_extract(data, '$.category')) LIKE ? OR LOWER(json_extract(data, '$.type')) LIKE ?)");
-        std::string q = "%" + criteria.query + "%";
-        for (int i = 0; i < 5; ++i) params.push_back(q);
-        isExpensive = true;
-    }
-    // Category filter
-    if (!criteria.category.empty()) {
-        conditions.push_back("LOWER(json_extract(data, '$.category')) LIKE ?");
-        params.push_back("%" + criteria.category + "%");
-    }
-    // Type filter
-    if (!criteria.type.empty()) {
-        conditions.push_back("LOWER(json_extract(data, '$.type')) LIKE ?");
-        params.push_back("%" + criteria.type + "%");
-    }
-    // Ingredient filter
-    if (!criteria.ingredient.empty()) {
-        conditions.push_back("LOWER(json_extract(data, '$.ingredients')) LIKE ?");
-        params.push_back("%" + criteria.ingredient + "%");
-    }
-    // Cook time max
-    if (!criteria.cookTimeMax.empty()) {
-        conditions.push_back("CAST(json_extract(data, '$.cookTime') AS INTEGER) <= ?");
-        params.push_back(criteria.cookTimeMax);
-    }
-    // Serving size min/max
-    if (!criteria.servingSizeMin.empty()) {
-        conditions.push_back("CAST(json_extract(data, '$.servingSize') AS INTEGER) >= ?");
-        params.push_back(criteria.servingSizeMin);
-    }
-    if (!criteria.servingSizeMax.empty()) {
-        conditions.push_back("CAST(json_extract(data, '$.servingSize') AS INTEGER) <= ?");
-        params.push_back(criteria.servingSizeMax);
-    }
+    // Determine if this is an expensive query (full-text search or multiple filters)
+    bool isExpensive = !criteria.query.empty() ||
+                      (!criteria.category.empty() && !criteria.type.empty()) ||
+                      (!criteria.ingredient.empty()) ||
+                      (!criteria.cookTimeMax.empty()) ||
+                      (!criteria.servingSizeMin.empty() || !criteria.servingSizeMax.empty());
 
-    // Build WHERE clause
-    for (const auto& cond : conditions) {
-        sql += " AND " + cond;
-    }
-
-    // Sorting
-    if (!criteria.sortBy.empty()) {
-        std::string sortCol;
-        if (criteria.sortBy == "title") sortCol = "json_extract(data, '$.title')";
-        else if (criteria.sortBy == "cookTime") sortCol = "CAST(json_extract(data, '$.cookTime') AS INTEGER)";
-        else if (criteria.sortBy == "category") sortCol = "json_extract(data, '$.category')";
-        else sortCol = "json_extract(data, '$.title')";
-        std::string sortOrder = criteria.sortOrder.empty() ? "ASC" : criteria.sortOrder;
-        sql += " ORDER BY " + sortCol + " " + sortOrder;
-    }
-
-    // Only cache expensive queries (full-text search or large result sets)
+    // Check cache for expensive queries
     std::string cacheKey;
     if (isExpensive) {
         std::ostringstream oss;
-        oss << "advsearch:" << criteria.query << ":" << criteria.category << ":" << criteria.type << ":" << criteria.ingredient << ":" << criteria.cookTimeMax << ":" << criteria.servingSizeMin << ":" << criteria.servingSizeMax << ":" << criteria.sortBy << ":" << criteria.sortOrder;
+        oss << "advsearch:" << criteria.query << ":" << criteria.category << ":" << criteria.type
+            << ":" << criteria.ingredient << ":" << criteria.cookTimeMax << ":" << criteria.servingSizeMin
+            << ":" << criteria.servingSizeMax << ":" << criteria.sortBy << ":" << criteria.sortOrder;
         cacheKey = oss.str();
         auto& redis = getRedis();
         auto cached = redis.get(cacheKey);
         if (cached) {
-            // Deserialize cached JSON array
-            nlohmann::json arr = nlohmann::json::parse(*cached);
-            for (const auto& item : arr) {
-                recipe r;
-                r.fromJson(item.dump());
-                recipes.push_back(r);
+            try {
+                nlohmann::json arr = nlohmann::json::parse(*cached);
+                for (const auto& item : arr) {
+                    recipes.push_back(jsonToRecipe(item.dump()));
+                }
+                return recipes;
+            } catch (...) {
+                // Invalid cache, continue with query
             }
-            return recipes;
         }
     }
 
+    // Build WHERE conditions
+    if (!criteria.query.empty()) {
+        // Full-text search across multiple fields using LIKE
+        std::string queryLower = criteria.query;
+        std::transform(queryLower.begin(), queryLower.end(), queryLower.begin(), ::tolower);
+        sql += " AND (LOWER(json_extract(data, '$.title')) LIKE ? OR "
+               "LOWER(json_extract(data, '$.ingredients')) LIKE ? OR "
+               "LOWER(json_extract(data, '$.instructions')) LIKE ? OR "
+               "LOWER(json_extract(data, '$.category')) LIKE ? OR "
+               "LOWER(json_extract(data, '$.type')) LIKE ?)";
+        std::string likeQuery = "%" + queryLower + "%";
+        params.insert(params.end(), {likeQuery, likeQuery, likeQuery, likeQuery, likeQuery});
+    }
+
+    if (!criteria.category.empty()) {
+        sql += " AND LOWER(json_extract(data, '$.category')) LIKE ?";
+        params.push_back("%" + criteria.category + "%");
+    }
+
+    if (!criteria.type.empty()) {
+        sql += " AND LOWER(json_extract(data, '$.type')) LIKE ?";
+        params.push_back("%" + criteria.type + "%");
+    }
+
+    if (!criteria.ingredient.empty()) {
+        sql += " AND LOWER(json_extract(data, '$.ingredients')) LIKE ?";
+        params.push_back("%" + criteria.ingredient + "%");
+    }
+
+    if (!criteria.cookTimeMax.empty()) {
+        // Extract numeric cook time and compare
+        sql += " AND CAST(SUBSTR(json_extract(data, '$.cookTime'), 1, INSTR(json_extract(data, '$.cookTime'), ' ') - 1) AS INTEGER) <= ?";
+        params.push_back(criteria.cookTimeMax);
+    }
+
+    if (!criteria.servingSizeMin.empty()) {
+        sql += " AND CAST(SUBSTR(json_extract(data, '$.servingSize'), 1, INSTR(json_extract(data, '$.servingSize'), ' ') - 1) AS INTEGER) >= ?";
+        params.push_back(criteria.servingSizeMin);
+    }
+
+    if (!criteria.servingSizeMax.empty()) {
+        sql += " AND CAST(SUBSTR(json_extract(data, '$.servingSize'), 1, INSTR(json_extract(data, '$.servingSize'), ' ') - 1) AS INTEGER) <= ?";
+        params.push_back(criteria.servingSizeMax);
+    }
+
+    // Add sorting
+    if (!criteria.sortBy.empty()) {
+        std::string sortOrder = criteria.sortOrder.empty() ? "ASC" : (criteria.sortOrder == "desc" ? "DESC" : "ASC");
+
+        if (criteria.sortBy == "title") {
+            sql += " ORDER BY LOWER(json_extract(data, '$.title')) " + sortOrder;
+        } else if (criteria.sortBy == "cookTime") {
+            sql += " ORDER BY CAST(SUBSTR(json_extract(data, '$.cookTime'), 1, INSTR(json_extract(data, '$.cookTime'), ' ') - 1) AS INTEGER) " + sortOrder;
+        } else if (criteria.sortBy == "category") {
+            sql += " ORDER BY LOWER(json_extract(data, '$.category')) " + sortOrder;
+        } else if (criteria.sortBy == "createdAt") {
+            sql += " ORDER BY created_at " + sortOrder;
+        }
+    } else {
+        // Default sort by title
+        sql += " ORDER BY LOWER(json_extract(data, '$.title')) ASC";
+    }
+
+    // Execute query
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(static_cast<sqlite3*>(db_), sql.c_str(), -1, &stmt, nullptr);
     if (rc != SQLITE_OK) {
+        std::cerr << "Failed to prepare advanced search statement: " << sqlite3_errmsg(static_cast<sqlite3*>(db_)) << std::endl;
         return recipes;
     }
-    int idx = 1;
-    for (const auto& p : params) {
-        sqlite3_bind_text(stmt, idx++, p.c_str(), -1, SQLITE_TRANSIENT);
+
+    // Bind parameters
+    for (size_t i = 0; i < params.size(); ++i) {
+        sqlite3_bind_text(stmt, static_cast<int>(i + 1), params[i].c_str(), -1, SQLITE_TRANSIENT);
     }
+
     nlohmann::json resultArr = nlohmann::json::array();
     while (sqlite3_step(stmt) == SQLITE_ROW) {
         const unsigned char* data = sqlite3_column_text(stmt, 0);
         if (data) {
-            recipe r;
-            r.fromJson(reinterpret_cast<const char*>(data));
-            recipes.push_back(r);
-            resultArr.push_back(nlohmann::json::parse(reinterpret_cast<const char*>(data)));
+            std::string jsonStr = reinterpret_cast<const char*>(data);
+            recipes.push_back(jsonToRecipe(jsonStr));
+            if (isExpensive) {
+                resultArr.push_back(nlohmann::json::parse(jsonStr));
+            }
         }
     }
     sqlite3_finalize(stmt);
 
-    // Store in Redis if expensive
+    // Cache results for expensive queries
     if (isExpensive && !recipes.empty()) {
         auto& redis = getRedis();
         redis.set(cacheKey, resultArr.dump());
         redis.expire(cacheKey, 300); // 5 min TTL
     }
+
     return recipes;
-    sqlite3_bind_text(stmt, 1, title.c_str(), -1, SQLITE_TRANSIENT);
-
-    std::string recipeId;
-    if (sqlite3_step(stmt) == SQLITE_ROW) {
-        recipeId = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
-    }
-    sqlite3_finalize(stmt);
-
-    if (recipeId.empty()) {
-        return false; // Recipe not found
-    }
-
-    return deleteRecipe(recipeId);
 }
 
 bool RecipeManagerSQLite::deleteRecipe(const std::string& id) {
@@ -360,74 +359,6 @@ bool RecipeManagerSQLite::deleteRecipe(const std::string& id) {
     return rc == SQLITE_DONE;
 }
 
-// User-specific operations
-bool RecipeManagerSQLite::isRecipeOwnedByUser(const std::string& recipeId, const std::string& userId) {
-    const char* selectSQL = "SELECT COUNT(*) FROM recipes WHERE id = ? AND user_id = ?;";
-    sqlite3_stmt* stmt = nullptr;
-
-    int rc = sqlite3_prepare_v2(static_cast<sqlite3*>(db_), selectSQL, -1, &stmt, nullptr);
-    if (rc != SQLITE_OK) {
-        std::cerr << "Failed to prepare statement: " << sqlite3_errmsg(static_cast<sqlite3*>(db_)) << std::endl;
-        return false;
-    }
-
-    sqlite3_bind_text(stmt, 1, recipeId.c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_bind_text(stmt, 2, userId.c_str(), -1, SQLITE_TRANSIENT);
-
-    bool owned = false;
-    if (sqlite3_step(stmt) == SQLITE_ROW) {
-        owned = sqlite3_column_int(stmt, 0) > 0;
-    }
-
-    sqlite3_finalize(stmt);
-    return owned;
-}
-
-bool RecipeManagerSQLite::isRecipeOwnedByUserByTitle(const std::string& recipeTitle, const std::string& userId) {
-    const char* selectSQL = "SELECT COUNT(*) FROM recipes r WHERE json_extract(r.data, '$.title') = ? AND r.user_id = ?;";
-    sqlite3_stmt* stmt = nullptr;
-
-    int rc = sqlite3_prepare_v2(static_cast<sqlite3*>(db_), selectSQL, -1, &stmt, nullptr);
-    if (rc != SQLITE_OK) {
-        std::cerr << "Failed to prepare statement: " << sqlite3_errmsg(static_cast<sqlite3*>(db_)) << std::endl;
-        return false;
-    }
-
-    sqlite3_bind_text(stmt, 1, recipeTitle.c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_bind_text(stmt, 2, userId.c_str(), -1, SQLITE_TRANSIENT);
-
-    bool owned = false;
-    if (sqlite3_step(stmt) == SQLITE_ROW) {
-        owned = sqlite3_column_int(stmt, 0) > 0;
-    }
-
-    sqlite3_finalize(stmt);
-    return owned;
-}
-
-std::vector<recipe> RecipeManagerSQLite::getRecipesByUser(const std::string& userId) {
-    const char* selectSQL = "SELECT data FROM recipes WHERE user_id = ? ORDER BY created_at DESC;";
-    sqlite3_stmt* stmt = nullptr;
-    std::vector<recipe> recipes;
-
-    int rc = sqlite3_prepare_v2(static_cast<sqlite3*>(db_), selectSQL, -1, &stmt, nullptr);
-    if (rc != SQLITE_OK) {
-        std::cerr << "Failed to prepare statement: " << sqlite3_errmsg(static_cast<sqlite3*>(db_)) << std::endl;
-        return recipes;
-    }
-
-    sqlite3_bind_text(stmt, 1, userId.c_str(), -1, SQLITE_TRANSIENT);
-
-    while (sqlite3_step(stmt) == SQLITE_ROW) {
-        const void* blobData = sqlite3_column_blob(stmt, 0);
-        int blobSize = sqlite3_column_bytes(stmt, 0);
-        std::string jsonData(static_cast<const char*>(blobData), blobSize);
-        recipes.push_back(jsonToRecipe(jsonData));
-    }
-
-    sqlite3_finalize(stmt);
-    return recipes;
-}
 
 // User-specific operations
 bool RecipeManagerSQLite::isRecipeOwnedByUser(const std::string& recipeId, const std::string& userId) {
@@ -511,11 +442,10 @@ std::unique_ptr<recipe> RecipeManagerSQLite::getRecipe(const std::string& id) {
     sqlite3_bind_text(stmt, 1, id.c_str(), -1, SQLITE_TRANSIENT);
 
     if (sqlite3_step(stmt) == SQLITE_ROW) {
-        const void* blobData = sqlite3_column_blob(stmt, 0);
-        int blobSize = sqlite3_column_bytes(stmt, 0);
-        std::string jsonData(static_cast<const char*>(blobData), blobSize);
+        const char* jsonData = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
+        std::string jsonStr = jsonData ? jsonData : "";
         sqlite3_finalize(stmt);
-        return std::unique_ptr<recipe>(new recipe(jsonToRecipe(jsonData)));
+                return std::unique_ptr<recipe>(new recipe(jsonToRecipe(jsonStr)));
     }
 
     sqlite3_finalize(stmt);
@@ -578,161 +508,6 @@ std::vector<recipe> RecipeManagerSQLite::searchByCategory(const std::string& cat
 std::vector<recipe> RecipeManagerSQLite::searchByType(const std::string& type) {
     // Similar implementation to searchByTitle
     return searchByTitle(type); // Simplified - could be more sophisticated
-}
-
-std::vector<recipe> RecipeManagerSQLite::advancedSearch(const SearchCriteria& criteria) {
-    std::vector<recipe> recipes;
-    std::vector<recipe> allRecipes = getAllRecipes();
-    
-    for (const auto& r : allRecipes) {
-        bool matches = true;
-        
-        // Full-text search across all fields
-        if (!criteria.query.empty()) {
-            std::string searchLower = criteria.query;
-            std::transform(searchLower.begin(), searchLower.end(), searchLower.begin(), ::tolower);
-            
-            std::string titleLower = r.getTitle();
-            std::string ingredientsLower = r.getIngredients();
-            std::string instructionsLower = r.getInstructions();
-            std::string categoryLower = r.getCategory();
-            std::string typeLower = r.getType();
-            
-            std::transform(titleLower.begin(), titleLower.end(), titleLower.begin(), ::tolower);
-            std::transform(ingredientsLower.begin(), ingredientsLower.end(), ingredientsLower.begin(), ::tolower);
-            std::transform(instructionsLower.begin(), instructionsLower.end(), instructionsLower.begin(), ::tolower);
-            std::transform(categoryLower.begin(), categoryLower.end(), categoryLower.begin(), ::tolower);
-            std::transform(typeLower.begin(), typeLower.end(), typeLower.begin(), ::tolower);
-            
-            bool found = titleLower.find(searchLower) != std::string::npos ||
-                        ingredientsLower.find(searchLower) != std::string::npos ||
-                        instructionsLower.find(searchLower) != std::string::npos ||
-                        categoryLower.find(searchLower) != std::string::npos ||
-                        typeLower.find(searchLower) != std::string::npos;
-                        
-            if (!found) matches = false;
-        }
-        
-        // Filter by category
-        if (!criteria.category.empty() && matches) {
-            std::string categoryLower = r.getCategory();
-            std::string criteriaLower = criteria.category;
-            std::transform(categoryLower.begin(), categoryLower.end(), categoryLower.begin(), ::tolower);
-            std::transform(criteriaLower.begin(), criteriaLower.end(), criteriaLower.begin(), ::tolower);
-            
-            if (categoryLower.find(criteriaLower) == std::string::npos) {
-                matches = false;
-            }
-        }
-        
-        // Filter by type (meal type)
-        if (!criteria.type.empty() && matches) {
-            std::string typeLower = r.getType();
-            std::string criteriaLower = criteria.type;
-            std::transform(typeLower.begin(), typeLower.end(), typeLower.begin(), ::tolower);
-            std::transform(criteriaLower.begin(), criteriaLower.end(), criteriaLower.begin(), ::tolower);
-            
-            if (typeLower.find(criteriaLower) == std::string::npos) {
-                matches = false;
-            }
-        }
-        
-        // Filter by ingredient
-        if (!criteria.ingredient.empty() && matches) {
-            std::string ingredientsLower = r.getIngredients();
-            std::string criteriaLower = criteria.ingredient;
-            std::transform(ingredientsLower.begin(), ingredientsLower.end(), ingredientsLower.begin(), ::tolower);
-            std::transform(criteriaLower.begin(), criteriaLower.end(), criteriaLower.begin(), ::tolower);
-            
-            if (ingredientsLower.find(criteriaLower) == std::string::npos) {
-                matches = false;
-            }
-        }
-        
-        // Filter by cook time (max)
-        if (!criteria.cookTimeMax.empty() && matches) {
-            try {
-                int maxTime = std::stoi(criteria.cookTimeMax);
-                std::string cookTime = r.getCookTime();
-                // Extract numeric value from cook time string (e.g., "30 minutes" -> 30)
-                int recipeTime = 0;
-                size_t pos = cookTime.find_first_of("0123456789");
-                if (pos != std::string::npos) {
-                    recipeTime = std::stoi(cookTime.substr(pos));
-                }
-                if (recipeTime > maxTime) {
-                    matches = false;
-                }
-            } catch (...) {
-                // Invalid cook time, skip this filter
-            }
-        }
-        
-        // Filter by serving size (min/max)
-        if ((!criteria.servingSizeMin.empty() || !criteria.servingSizeMax.empty()) && matches) {
-            try {
-                std::string servingSize = r.getServingSize();
-                int size = 0;
-                size_t pos = servingSize.find_first_of("0123456789");
-                if (pos != std::string::npos) {
-                    size = std::stoi(servingSize.substr(pos));
-                }
-                
-                if (!criteria.servingSizeMin.empty()) {
-                    int minSize = std::stoi(criteria.servingSizeMin);
-                    if (size < minSize) matches = false;
-                }
-                
-                if (!criteria.servingSizeMax.empty()) {
-                    int maxSize = std::stoi(criteria.servingSizeMax);
-                    if (size > maxSize) matches = false;
-                }
-            } catch (...) {
-                // Invalid serving size, skip this filter
-            }
-        }
-        
-        if (matches) {
-            recipes.push_back(r);
-        }
-    }
-    
-    // Sort results
-    if (!criteria.sortBy.empty()) {
-        std::string sortBy = criteria.sortBy;
-        std::string sortOrder = criteria.sortOrder.empty() ? "asc" : criteria.sortOrder;
-        
-        std::sort(recipes.begin(), recipes.end(), [&](const recipe& a, const recipe& b) {
-            bool ascending = (sortOrder == "asc");
-            
-            if (sortBy == "title") {
-                return ascending ? a.getTitle() < b.getTitle() : a.getTitle() > b.getTitle();
-            } else if (sortBy == "cookTime") {
-                // Extract numeric cook time for comparison
-                auto extractTime = [](const std::string& cookTime) -> int {
-                    size_t pos = cookTime.find_first_of("0123456789");
-                    if (pos != std::string::npos) {
-                        try {
-                            return std::stoi(cookTime.substr(pos));
-                        } catch (...) {
-                            return 0;
-                        }
-                    }
-                    return 0;
-                };
-                int timeA = extractTime(a.getCookTime());
-                int timeB = extractTime(b.getCookTime());
-                return ascending ? timeA < timeB : timeA > timeB;
-            } else if (sortBy == "category") {
-                return ascending ? a.getCategory() < b.getCategory() : a.getCategory() > b.getCategory();
-            }
-            
-            // Default: sort by title
-            return ascending ? a.getTitle() < b.getTitle() : a.getTitle() > b.getTitle();
-        });
-    }
-    
-    return recipes;
 }
 
 // Rating operations
@@ -1294,4 +1069,8 @@ std::vector<RecipeManagerSQLite::Review> RecipeManagerSQLite::getSortedReviewsBy
     });
 
     return reviews;
+}
+
+recipe RecipeManagerSQLite::jsonToRecipe(const std::string& json) {
+    return recipe::fromJson(json);
 }
